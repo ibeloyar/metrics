@@ -24,7 +24,7 @@ func TestUpdateMetric(t *testing.T) {
 	handlers := InitHandlers(repository.Repository{
 		Metrics: make(map[string]model.Metrics),
 	})
-	
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /update/{type}/{name}/{value}", handlers.UpdateMetric)
 
@@ -62,6 +62,7 @@ func TestUpdateMetric(t *testing.T) {
 			mux.ServeHTTP(tt.args.w, tt.args.r)
 
 			res := tt.args.w.Result()
+			defer res.Body.Close()
 
 			gotMetricType := tt.args.r.PathValue("type")
 
