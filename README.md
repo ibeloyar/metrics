@@ -42,3 +42,54 @@ git fetch template && git checkout template/main .github
 - **Clean Architecture**
 - **Hexagonal Architecture**
 - **Layered Architecture**
+
+
+Трек «Сервис сбора метрик и алертинга»
+  
+1. Скомпилируйте ваши сервер и агент в папках cmd/server и cmd/agent командами go build -o server *.go и go build -o agent *.go соответственно.
+2. Скачайте бинарный файл с автотестами для вашей ОС — например, metricstest-darwin-arm64 для MacOS на процессоре Apple Silicon.
+3. Разместите бинарный файл так, чтобы он был доступен для запуска из командной строки, — пропишите путь в переменную $PATH.
+4. Ознакомьтесь с параметрами запуска автотестов в файле .github/workflows/metricstest.yml вашего репозитория. Автотесты для разных инкрементов требуют различных аргументов для запуска.
+
+go build -o cmd/server/server cmd/server/*.go
+
+metricstest_v2 -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agent
+
+go build -o cmd/server/server cmd/server/*.go && metricstest_v2 -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agent
+
+metricstest_v2 -test.v -test.run=^TestIteration1$ -binary-path=./cmd/server/server
+
+=====================================================
+Задание по треку «Сервис сбора метрик и алертинга»
+Разработайте сервер для сбора рантайм-метрик, который будет собирать репорты от агентов по протоколу HTTP. 
+Агент вы реализуете в следующем инкременте — в качестве источника метрик вы будете использовать пакет runtime.
+
+Сервер должен быть доступен по адресу http://localhost:8080, а также:
+Принимать и хранить произвольные метрики двух типов:
+    Тип gauge, float64 — новое значение должно замещать предыдущее.
+    Тип counter, int64 — новое значение должно добавляться к предыдущему, если какое-то значение уже было известно серверу.
+
+Принимать метрики по протоколу HTTP методом POST.
+Принимать данные в формате http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>, Content-Type: text/plain.
+    При успешном приёме возвращать http.StatusOK.
+    При попытке передать запрос без имени метрики возвращать http.StatusNotFound.
+    При попытке передать запрос с некорректным типом метрики или значением возвращать http.StatusBadRequest.
+    Редиректы не поддерживаются.
+
+Для хранения метрик объявите тип MemStorage. 
+Рекомендуем использовать тип struct с полем-коллекцией внутри (slice или map). 
+В будущем это позволит добавлять к объекту хранилища новые поля — например, логгер или мьютекс, чтобы можно было использовать их в методах. 
+Опишите интерфейс для взаимодействия с этим хранилищем.
+
+Пример запроса к серверу:
+
+POST /update/counter/someMetric/527 HTTP/1.1
+Host: localhost:8080
+Content-Length: 0
+Content-Type: text/plain
+Пример ответа от сервера:
+
+HTTP/1.1 200 OK
+Date: Tue, 21 Feb 2023 02:51:35 GMT
+Content-Length: 11
+Content-Type: text/plain; charset=utf-8 
