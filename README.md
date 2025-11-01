@@ -63,3 +63,16 @@ Iter2
 go build -o cmd/server/server cmd/server/*.go && go build -o cmd/agent/agent cmd/agent/*.go
 metricstest_v2 -test.v -test.run=^TestIteration2A$ -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent
 metricstest_v2 -test.v -test.run=^TestIteration2B$ -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=.
+
+
+Задание по треку «Сервис сбора метрик и алертинга»
+
+- Вы написали приложение с помощью пакета стандартной библиотеки net/http. Используя любой внешний пакет (роутер или фреймворк), совместимый с net/http, перепишите ваш код.
+
+- Доработайте сервер так, чтобы в ответ на запрос GET http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> он возвращал аккумулированное значение метрики в текстовом виде со статусом http.StatusOK.
+
+- При попытке запроса неизвестной метрики сервер должен возвращать http.StatusNotFound.
+
+- По запросу GET http://<АДРЕС_СЕРВЕРА>/ сервер должен отдавать HTML-страницу со списком имён и значений всех известных ему на текущий момент метрик.
+
+- Хендлеры должны взаимодействовать с экземпляром MemStorage при помощи соответствующих интерфейсных методов.

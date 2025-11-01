@@ -5,24 +5,25 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	models "github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository"
 )
 
 type Handlers struct {
-	repository repository.Repository
+	storage repository.MemStorage
 }
 
-func InitHandlers(r repository.Repository) *Handlers {
+func InitHandlers(s repository.MemStorage) *Handlers {
 	return &Handlers{
-		repository: r,
+		storage: s,
 	}
 }
 
 func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
-	t := r.PathValue("type")
-	n := r.PathValue("name")
-	v := r.PathValue("value")
+	t := chi.URLParam(r, "type")
+	n := chi.URLParam(r, "name")
+	v := chi.URLParam(r, "value")
 
 	fmt.Printf("%s %s %s\n", t, n, v)
 
@@ -37,7 +38,7 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.repository.SetMetric(n, t, value)
+	_ = h.storage.SetMetric(n, t, value)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -45,7 +46,7 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 
-	metric := h.repository.GetMetric(name)
+	metric := h.storage.GetMetric(name)
 	if metric == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -54,4 +55,19 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("%f", *metric.Value)))
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
+	metrics := h.storage.GetMetrics()
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	w.Write([]byte("<h1>Metrics</h1>"))
+	w.Write([]byte("<table border='1'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>"))
+	for nameID, metric := range metrics {
+		row := fmt.Sprintf("<tr><td>%s</td><td>%v</td></tr>", nameID, *metric.Value)
+		w.Write([]byte(row))
+	}
+	w.Write([]byte("</tbody></table>"))
 }

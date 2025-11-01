@@ -1,16 +1,16 @@
 package handler
 
 import (
-	"net/http"
-
+	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/repository"
 )
 
-func InitRoutes(mux *http.ServeMux, repository *repository.Repository) *http.ServeMux {
-	handlers := InitHandlers(*repository)
+func InitRoutes(r *chi.Mux, s *repository.MemStorage) *chi.Mux {
+	handlers := InitHandlers(*s)
 
-	mux.HandleFunc("GET /metric/{name}", handlers.GetMetric)
-	mux.HandleFunc("POST /update/{type}/{name}/{value}", handlers.UpdateMetric)
+	r.Get("/", handlers.GetMetricsPage)
+	r.Get("/value/{name}", handlers.GetMetric)
+	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetric)
 
-	return mux
+	return r
 }
