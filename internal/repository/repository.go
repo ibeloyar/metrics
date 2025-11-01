@@ -41,7 +41,7 @@ func (s *MemStorage) SetMetric(name, metricType string, value float64) error {
 func (s *MemStorage) IncrementCountMetricValue(name string, value float64) error {
 	oldMetric := s.GetMetric(name)
 	if oldMetric == nil {
-		return s.SetMetric(name, name, value)
+		return s.SetMetric(name, model.Counter, value)
 	}
 
 	newValue := value

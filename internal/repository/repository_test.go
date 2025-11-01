@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,9 +13,9 @@ import (
 func TestSetMetric(t *testing.T) {
 	storage := New()
 
-	t.Run("success set metric by name", func(t *testing.T) {
+	t.Run("success set metric", func(t *testing.T) {
 		metricName := "test_metric"
-		metricType := "counter"
+		metricType := model.Counter
 		metricValue := 2.05
 
 		err := storage.SetMetric(metricName, metricType, metricValue)
@@ -33,11 +34,47 @@ func TestSetMetric(t *testing.T) {
 	})
 }
 
+func TestIncrementCountMetricValue(t *testing.T) {
+	storage := New()
+
+	t.Run("success increment count metric", func(t *testing.T) {
+		metricName := "test_metric"
+		metricType := model.Counter
+		metricValue := float64(5)
+
+		err := storage.IncrementCountMetricValue(metricName, metricValue)
+		assert.Nil(t, err)
+
+		metric, ok := storage.metrics[metricName]
+		if !ok {
+			assert.Fail(t, err.Error())
+		}
+
+		assert.Equal(t, metricName, metric.ID)
+		assert.Equal(t, metricType, metric.MType)
+		assert.Equal(t, metricValue, *metric.Value)
+
+		addedValue := float64(10)
+
+		err = storage.IncrementCountMetricValue(metricName, addedValue)
+		require.Nil(t, err)
+
+		metric, ok = storage.metrics[metricName]
+		if !ok {
+			assert.Fail(t, err.Error())
+		}
+
+		require.Equal(t, metricName, metric.ID)
+		require.Equal(t, metricType, metric.MType)
+		require.Equal(t, metricValue+addedValue, *metric.Value)
+	})
+}
+
 func TestGetMetric(t *testing.T) {
 	storage := New()
 
 	metricName := "test_metric"
-	metricType := "counter"
+	metricType := model.Gauge
 	metricValue := 2.05
 
 	err := storage.SetMetric(metricName, metricType, metricValue)
