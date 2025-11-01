@@ -1,4 +1,5 @@
 GO = go
+MAKE = make
 
 .DEFAULT_GOAL := help
 
@@ -7,10 +8,14 @@ build:
 	$(GO) build -o cmd/server/server cmd/server/main.go
 	$(GO) build -o cmd/agent/agent cmd/agent/main.go
 
-.PHONY: run
-run:
+.PHONY: run-agent
+run-agent:
+	$(GO) run cmd/agent/main.go
+
+.PHONY: run-server
+run-server:
 	$(GO) run cmd/server/main.go
-	$(GO) run cmd/agent/main.gos
+
 
 .PHONY: test
 test:
@@ -20,6 +25,7 @@ test:
 help:
 	@echo "command           | description"
 	@echo "===================================================="
-	@echo "run               | run server server and then agent"
+	@echo "run-agent         | run metric agent"
+	@echo "run-server        | run metric server"
 	@echo "build             | build agent and server"
 	@echo "test              | run tests with 'clean' out"
