@@ -5,10 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/ibeloyar/metrics/internal/model"
 )
 
 func TestUpdateMetric(t *testing.T) {
@@ -21,12 +21,10 @@ func TestUpdateMetric(t *testing.T) {
 		metricType string
 	}
 
-	handlers := InitHandlers(repository.Repository{
-		Metrics: make(map[string]model.Metrics),
-	})
+	r := chi.NewRouter()
+	s := repository.New()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /update/{type}/{name}/{value}", handlers.UpdateMetric)
+	router := InitRoutes(r, s)
 
 	tests := []struct {
 		name string
@@ -44,7 +42,6 @@ func TestUpdateMetric(t *testing.T) {
 				code:       http.StatusOK,
 			},
 		},
-
 		{
 			name: "success gauge update",
 			args: args{
@@ -52,21 +49,28 @@ func TestUpdateMetric(t *testing.T) {
 				r: httptest.NewRequest(http.MethodPost, "/update/gauge/name/1", nil),
 			},
 			want: want{
-				metricType: model.Gauge,
-				code:       http.StatusOK,
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "failed with type error",
+			args: args{
+				w: httptest.NewRecorder(),
+				r: httptest.NewRequest(http.MethodPost, "/update/wrong/name/1", nil),
+			},
+			want: want{
+				code: http.StatusBadRequest,
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mux.ServeHTTP(tt.args.w, tt.args.r)
+			router.ServeHTTP(tt.args.w, tt.args.r)
 
 			res := tt.args.w.Result()
 			defer res.Body.Close()
 
-			gotMetricType := tt.args.r.PathValue("type")
-
-			assert.Equal(t, tt.want.metricType, gotMetricType)
 			assert.Equal(t, tt.want.code, res.StatusCode)
 		})
 	}
