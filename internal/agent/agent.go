@@ -9,12 +9,13 @@ import (
 	"time"
 )
 
-const (
-	pollInterval   = 2 * time.Second
-	reportInterval = 10 * time.Second
-)
+type Config struct {
+	Addr              string
+	ReportIntervalSec int
+	PollIntervalSec   int
+}
 
-func Run() {
+func Run(config Config) {
 	var m runtime.MemStats
 	var mu sync.Mutex
 
@@ -26,7 +27,7 @@ func Run() {
 		}
 
 		for {
-			time.Sleep(reportInterval)
+			time.Sleep(time.Duration(config.ReportIntervalSec) * time.Second)
 
 			mu.Lock()
 			metrics := map[string]float64{
@@ -101,6 +102,6 @@ func Run() {
 
 		pollCount++
 
-		time.Sleep(pollInterval)
+		time.Sleep(time.Duration(config.PollIntervalSec) * time.Second)
 	}
 }

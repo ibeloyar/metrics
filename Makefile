@@ -21,6 +21,10 @@ run-server:
 test:
 	$(GO) test -v ./... | { grep -v 'no test files'; true; }
 
+.PHONY: test_iter4
+test_iter4:
+	metricstest_v2 -test.v -test.run=^TestIteration4$ -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080
+
 .PHONY: help
 help:
 	@echo "command           | description"
@@ -29,3 +33,4 @@ help:
 	@echo "run-server        | run metric server"
 	@echo "build             | build agent and server"
 	@echo "test              | run tests with 'clean' out"
+	@echo "test_iterX        | run tests for iteration X"
