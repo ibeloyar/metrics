@@ -64,7 +64,7 @@ func Run(config Config) {
 			for name, value := range metrics {
 				request, err := http.NewRequest(
 					http.MethodPost,
-					fmt.Sprintf("http://localhost:8080/update/gauge/%s/%f", name, value),
+					fmt.Sprintf("http://%s/update/gauge/%s/%f", config.Addr, name, value),
 					nil,
 				)
 				if err != nil {
@@ -81,13 +81,13 @@ func Run(config Config) {
 				response.Body.Close()
 			}
 
-			response, err := client.Post(fmt.Sprintf("http://localhost:8080/update/counter/PollCount/%d", pollCount), "text/plain", nil)
+			response, err := client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", config.Addr, pollCount), "text/plain", nil)
 			if err != nil {
 				panic(err)
 			}
 			response.Body.Close()
 
-			response, err = client.Post(fmt.Sprintf("http://localhost:8080/update/gauge/RandomValue/%f", rand.Float64()), "text/plain", nil)
+			response, err = client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", config.Addr, rand.Float64()), "text/plain", nil)
 			if err != nil {
 				panic(err)
 			}
