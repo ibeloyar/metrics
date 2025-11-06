@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"flag"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -10,14 +11,21 @@ import (
 )
 
 type Config struct {
-	Addr              string
-	ReportIntervalSec int
-	PollIntervalSec   int
+	addr              string
+	reportIntervalSec int
+	pollIntervalSec   int
 }
 
-func Run(config Config) {
+func Run() {
+	var config Config
 	var m runtime.MemStats
 	var mu sync.Mutex
+
+	flag.StringVar(&config.addr, "a", ":8080", "The address metric SERVER listen on")
+	flag.IntVar(&config.reportIntervalSec, "r", 10, "Send report metrics interval")
+	flag.IntVar(&config.pollIntervalSec, "p", 2, "Read metrics interval")
+
+	flag.Parse()
 
 	pollCount := 0
 
@@ -27,7 +35,7 @@ func Run(config Config) {
 		}
 
 		for {
-			time.Sleep(time.Duration(config.ReportIntervalSec) * time.Second)
+			time.Sleep(time.Duration(config.reportIntervalSec) * time.Second)
 
 			mu.Lock()
 			metrics := map[string]float64{
@@ -64,7 +72,7 @@ func Run(config Config) {
 			for name, value := range metrics {
 				request, err := http.NewRequest(
 					http.MethodPost,
-					fmt.Sprintf("http://%s/update/gauge/%s/%f", config.Addr, name, value),
+					fmt.Sprintf("http://%s/update/gauge/%s/%f", config.addr, name, value),
 					nil,
 				)
 				if err != nil {
@@ -81,13 +89,13 @@ func Run(config Config) {
 				response.Body.Close()
 			}
 
-			response, err := client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", config.Addr, pollCount), "text/plain", nil)
+			response, err := client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", config.addr, pollCount), "text/plain", nil)
 			if err != nil {
 				panic(err)
 			}
 			response.Body.Close()
 
-			response, err = client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", config.Addr, rand.Float64()), "text/plain", nil)
+			response, err = client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", config.addr, rand.Float64()), "text/plain", nil)
 			if err != nil {
 				panic(err)
 			}
@@ -102,6 +110,6 @@ func Run(config Config) {
 
 		pollCount++
 
-		time.Sleep(time.Duration(config.PollIntervalSec) * time.Second)
+		time.Sleep(time.Duration(config.pollIntervalSec) * time.Second)
 	}
 }

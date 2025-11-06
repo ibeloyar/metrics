@@ -1,6 +1,7 @@
 package server
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -9,7 +10,13 @@ import (
 	"github.com/ibeloyar/metrics/internal/repository"
 )
 
-func Run(addr string) {
+func Run() {
+	var addr string
+	
+	flag.StringVar(&addr, "a", ":8080", "The address to listen on")
+
+	flag.Parse()
+
 	router := chi.NewRouter()
 	repo := repository.New()
 
