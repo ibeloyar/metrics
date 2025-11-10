@@ -38,7 +38,7 @@ func (s *Service) SetMetric(metricName, metricType string, metricValue float64) 
 		if err != nil {
 			return &model.APIError{
 				Code:    http.StatusInternalServerError,
-				Message: err.Error(),
+				Message: http.StatusText(http.StatusInternalServerError),
 			}
 		}
 		return nil
@@ -47,7 +47,7 @@ func (s *Service) SetMetric(metricName, metricType string, metricValue float64) 
 		if err != nil {
 			return &model.APIError{
 				Code:    http.StatusInternalServerError,
-				Message: err.Error(),
+				Message: http.StatusText(http.StatusInternalServerError),
 			}
 		}
 		return nil
