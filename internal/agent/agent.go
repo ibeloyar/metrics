@@ -2,13 +2,13 @@ package agent
 
 import (
 	"context"
-	"fmt"
-	"math/rand/v2"
-	"net/http"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/ibeloyar/metrics/internal/agent/repository"
+	"github.com/ibeloyar/metrics/internal/agent/service"
 
 	config "github.com/ibeloyar/metrics/internal/config/agent"
 )
@@ -16,9 +16,7 @@ import (
 func Run(config config.Config) error {
 	var m runtime.MemStats
 
-	safeMetrics := NewSafeMetrics()
-
-	pollCount := 0
+	repo := repository.NewRepository()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -31,51 +29,33 @@ func Run(config config.Config) error {
 
 	for {
 		select {
+		// Сбор метрик
 		case <-readMetricTicker.C:
-			// Сбор метрик
 			runtime.ReadMemStats(&m)
 
-			safeMetrics.SetFromMemStats(m)
+			repo.SetFromMemStats(m)
 
-			pollCount++
+			repo.IncrementPollCounter()
 		case <-sendMetricTicker.C:
 			// Отправка метрик
-			client := &http.Client{
-				Timeout: time.Second * 1,
-			}
-
-			metrics := safeMetrics.GetAll()
+			as := service.NewService(config.Addr)
+			metrics := repo.GetAll()
+			pollCounter := repo.GetPollCounter()
 
 			for name, value := range metrics {
-				request, err := http.NewRequest(
-					http.MethodPost,
-					fmt.Sprintf("http://%s/update/gauge/%s/%f", config.Addr, name, value),
-					nil,
-				)
-				if err != nil {
+				if err := as.SendGaugeMetric(name, value); err != nil {
 					return err
 				}
-
-				request.Header.Set("Content-Type", "text/plain")
-
-				response, err := client.Do(request)
-				if err != nil {
-					return err
-				}
-				response.Body.Close()
 			}
 
-			response, err := client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", config.Addr, pollCount), "text/plain", nil)
-			if err != nil {
+			if err := as.SendPollCounter(pollCounter); err != nil {
 				return err
 			}
-			response.Body.Close()
+			repo.ResetPollCounter()
 
-			response, err = client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", config.Addr, rand.Float64()), "text/plain", nil)
-			if err != nil {
+			if err := as.SendRandomValue(); err != nil {
 				return err
 			}
-			response.Body.Close()
 		case <-ctx.Done():
 			return nil
 		}

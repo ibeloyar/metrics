@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,6 +18,6 @@ func Run(config config.Config) {
 
 	fmt.Println("Starting server on " + config.Addr)
 	if err := http.ListenAndServe(config.Addr, handler.InitRoutes(router, repo)); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
