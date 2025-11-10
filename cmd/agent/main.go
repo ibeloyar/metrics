@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/ibeloyar/metrics/internal/agent"
 
 	config "github.com/ibeloyar/metrics/internal/config/agent"
@@ -8,6 +10,8 @@ import (
 
 func main() {
 	cfg := config.Read()
-	
-	agent.Run(cfg)
+
+	if err := agent.Run(cfg); err != nil {
+		log.Fatal(err)
+	}
 }
