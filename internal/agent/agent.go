@@ -30,14 +30,12 @@ func Run(config config.Config) error {
 	for {
 		select {
 		case <-readMetricTicker.C:
-			// Сбор метрик
 			runtime.ReadMemStats(&m)
 
 			repo.SetFromMemStats(m)
 
 			repo.IncrementPollCounter()
 		case <-sendMetricTicker.C:
-			// Отправка метрик
 			as := service.NewService(config.Addr)
 			metrics := repo.GetAll()
 			pollCounter := repo.GetPollCounter()
