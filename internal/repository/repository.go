@@ -1,11 +1,14 @@
 package repository
 
 import (
+	"sync"
+
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
 type MemStorage struct {
 	metrics map[string]model.Metrics
+	mu      sync.RWMutex
 }
 
 func New() *MemStorage {
@@ -15,6 +18,9 @@ func New() *MemStorage {
 }
 
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	v, ok := s.metrics[name]
 	if !ok {
 		return nil
@@ -23,10 +29,16 @@ func (s *MemStorage) GetMetric(name string) *model.Metrics {
 }
 
 func (s *MemStorage) GetMetrics() map[string]model.Metrics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.metrics
 }
 
 func (s *MemStorage) SetMetric(name, metricType string, value float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.metrics[name] = model.Metrics{
 		ID:    name,
 		MType: metricType,
@@ -49,6 +61,9 @@ func (s *MemStorage) IncrementCountMetricValue(name string, value float64) error
 	if oldMetric.Value != nil {
 		newValue = newValue + *oldMetric.Value
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.metrics[name] = model.Metrics{
 		ID:    name,

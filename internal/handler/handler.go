@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 
@@ -71,20 +71,34 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 
-	w.Write([]byte(fmt.Sprintf("%g", *metric.Value)))
+	w.Write([]byte(strconv.FormatFloat(*metric.Value, 'g', -1, 64)))
 }
 
 func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
+	metricsPageTemplate := `
+	<h1>Metrics</h1>
+	<table border="1">
+		<thead>
+			<tr><th>Key</th><th>Value</th></tr>
+		</thead>
+		<tbody>
+			{{range .}}
+			<tr><td>{{.ID}}</td><td>{{.Value}}</td></tr>
+			{{end}}
+		</tbody>
+	</table>
+	`
+
 	metrics, _ := h.service.GetMetrics()
+
+	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
+
+	err := t.Execute(w, metrics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-
-	w.Write([]byte("<h1>Metrics</h1>"))
-	w.Write([]byte("<table border='1'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>"))
-	for _, metric := range metrics {
-		row := fmt.Sprintf("<tr><td>%s</td><td>%g</td></tr>", metric.ID, *metric.Value)
-		w.Write([]byte(row))
-	}
-	w.Write([]byte("</tbody></table>"))
 }
