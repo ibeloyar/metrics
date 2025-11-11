@@ -29,8 +29,8 @@ func Run(config config.Config) error {
 
 	for {
 		select {
-		// Сбор метрик
 		case <-readMetricTicker.C:
+			// Сбор метрик
 			runtime.ReadMemStats(&m)
 
 			repo.SetFromMemStats(m)
