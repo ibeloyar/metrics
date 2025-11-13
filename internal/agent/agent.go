@@ -7,10 +7,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ibeloyar/metrics/internal/agent/config"
 	"github.com/ibeloyar/metrics/internal/agent/repository"
 	"github.com/ibeloyar/metrics/internal/agent/service"
-
-	config "github.com/ibeloyar/metrics/internal/config/agent"
 )
 
 func Run(config config.Config) error {
