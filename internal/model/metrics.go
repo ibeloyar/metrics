@@ -1,4 +1,4 @@
-package models
+package model
 
 const (
 	Counter = "counter"
@@ -16,4 +16,9 @@ type Metrics struct {
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
 	Hash  string   `json:"hash,omitempty"`
+}
+
+type APIError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }

@@ -42,3 +42,11 @@ git fetch template && git checkout template/main .github
 - **Clean Architecture**
 - **Hexagonal Architecture**
 - **Layered Architecture**
+
+
+Трек «Сервис сбора метрик и алертинга»
+  
+1. Скомпилируйте ваши сервер и агент в папках cmd/server и cmd/agent командами go build -o server *.go и go build -o agent *.go соответственно.
+2. Скачайте бинарный файл с автотестами для вашей ОС — например, metricstest-darwin-arm64 для MacOS на процессоре Apple Silicon.
+3. Разместите бинарный файл так, чтобы он был доступен для запуска из командной строки, — пропишите путь в переменную $PATH.
+4. Ознакомьтесь с параметрами запуска автотестов в файле .github/workflows/metricstest.yml вашего репозитория. Автотесты для разных инкрементов требуют различных аргументов для запуска.
