@@ -16,12 +16,12 @@ func TestSetMetric(t *testing.T) {
 	t.Run("success set metric", func(t *testing.T) {
 		metricName := "test_metric"
 		metricType := model.Counter
-		metricValue := 2.05
+		metricDelta := int64(2)
 
 		err := storage.SetMetric(model.Metrics{
 			ID:    metricName,
 			MType: metricType,
-			Value: &metricValue,
+			Delta: &metricDelta,
 		})
 
 		require.Nil(t, err)
@@ -34,7 +34,7 @@ func TestSetMetric(t *testing.T) {
 
 		require.Equal(t, metricName, metric.ID)
 		require.Equal(t, metricType, metric.MType)
-		require.Equal(t, metricValue, *metric.Value)
+		require.Equal(t, metricDelta, *metric.Delta)
 	})
 }
 

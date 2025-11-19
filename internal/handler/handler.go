@@ -5,7 +5,9 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
@@ -26,6 +28,27 @@ func InitHandlers(s Service) *Handlers {
 	return &Handlers{
 		service: s,
 	}
+}
+
+func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+	n := chi.URLParam(r, "name")
+	t := chi.URLParam(r, "type")
+
+	if !h.service.IsValidMetricType(t) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	metric, err := h.service.GetMetric(n)
+	if err != nil {
+		http.Error(w, err.Message, err.Code)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+
+	w.Write([]byte(strconv.FormatFloat(*metric.Value, 'g', -1, 64)))
 }
 
 func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +81,55 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UpdateMetricInQuery(w http.ResponseWriter, r *http.Request) {
+	t := chi.URLParam(r, "type")
+	n := chi.URLParam(r, "name")
+	v := chi.URLParam(r, "value")
+
+	if !h.service.IsValidMetricType(t) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if t == model.Counter {
+		value, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		apiErr := h.service.SetMetric(model.Metrics{
+			ID:    n,
+			MType: model.Gauge,
+			Delta: &value,
+		})
+		if apiErr != nil {
+			http.Error(w, apiErr.Message, apiErr.Code)
+			return
+		}
+	}
+	if t == model.Gauge {
+		value, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		apiErr := h.service.SetMetric(model.Metrics{
+			ID:    n,
+			MType: model.Gauge,
+			Value: &value,
+		})
+		if apiErr != nil {
+			http.Error(w, apiErr.Message, apiErr.Code)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handlers) GetMetricInfo(w http.ResponseWriter, r *http.Request) {
 	var body model.GetMetricBody
 
 	bodyBytes, err := io.ReadAll(r.Body)

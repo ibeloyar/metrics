@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,8 +20,9 @@ func pointer[T any](v T) *T {
 
 func TestUpdateMetric(t *testing.T) {
 	type args struct {
-		uri  string
-		body model.Metrics
+		uri           string
+		requestMethod string
+		body          *model.Metrics
 	}
 
 	type want struct {
@@ -41,8 +43,9 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			name: "success counter update",
 			args: args{
-				uri: "/update/",
-				body: model.Metrics{
+				uri:           "/update/",
+				requestMethod: http.MethodPost,
+				body: &model.Metrics{
 					ID:    "TestMetric",
 					MType: model.Counter,
 					Value: pointer(10.2),
@@ -57,8 +60,9 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			name: "success gauge update",
 			args: args{
-				uri: "/update/",
-				body: model.Metrics{
+				uri:           "/update/",
+				requestMethod: http.MethodPost,
+				body: &model.Metrics{
 					ID:    "TestMetric",
 					MType: model.Gauge,
 					Value: pointer(10.2),
@@ -69,10 +73,23 @@ func TestUpdateMetric(t *testing.T) {
 			},
 		},
 		{
+			name: "failed gauge get value with Not Found 404",
+			args: args{
+				uri:           "/value/gauge/Alloc",
+				requestMethod: http.MethodGet,
+				body:          nil,
+			},
+			want: want{
+				code:       http.StatusNotFound,
+				metricType: model.Gauge,
+			},
+		},
+		{
 			name: "failed with type error",
 			args: args{
-				uri: "/update/",
-				body: model.Metrics{
+				uri:           "/update/",
+				requestMethod: http.MethodPost,
+				body: &model.Metrics{
 					ID:    "TestMetric",
 					MType: "wrongType",
 					Value: pointer(10.2),
@@ -86,19 +103,26 @@ func TestUpdateMetric(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var bodyBytes []byte
 			var err error
-			if tt.name == "invalid JSON" {
-				bodyBytes = []byte("invalid json")
-			} else {
-				bodyBytes, err = json.Marshal(tt.args.body)
-				if err != nil {
-					t.Fatalf("cannot marshal body: %v", err)
+			var bodyReader io.Reader
+
+			if tt.args.body != nil {
+				var bodyBytes []byte
+
+				if tt.name == "invalid JSON" {
+					bodyBytes = []byte("invalid json")
+				} else {
+					bodyBytes, err = json.Marshal(tt.args.body)
+					if err != nil {
+						t.Fatalf("cannot marshal body: %v", err)
+					}
 				}
+
+				bodyReader = bytes.NewReader(bodyBytes)
 			}
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, tt.args.uri, bytes.NewReader(bodyBytes))
+			r := httptest.NewRequest(tt.args.requestMethod, tt.args.uri, bodyReader)
 
 			router.ServeHTTP(w, r)
 
