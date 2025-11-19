@@ -30,7 +30,7 @@ func InitHandlers(s Service) *Handlers {
 	}
 }
 
-func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	n := chi.URLParam(r, "name")
 	t := chi.URLParam(r, "type")
 
@@ -48,40 +48,16 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 
-	w.Write([]byte(strconv.FormatFloat(*metric.Value, 'g', -1, 64)))
+	if metric.MType == model.Gauge {
+		w.Write([]byte(strconv.FormatFloat(*metric.Value, 'g', -1, 64)))
+		return
+	} else if metric.MType == model.Counter {
+		w.Write([]byte(strconv.FormatInt(*metric.Delta, 10)))
+		return
+	}
 }
 
-func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
-	var body model.Metrics
-
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
-		return
-	}
-	defer r.Body.Close()
-
-	err = json.Unmarshal(bodyBytes, &body)
-	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
-		return
-	}
-
-	if !h.service.IsValidMetricType(body.MType) {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	apiErr := h.service.SetMetric(body)
-	if apiErr != nil {
-		http.Error(w, apiErr.Message, apiErr.Code)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (h *Handlers) UpdateMetricInQuery(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	n := chi.URLParam(r, "name")
 	v := chi.URLParam(r, "value")
@@ -100,7 +76,7 @@ func (h *Handlers) UpdateMetricInQuery(w http.ResponseWriter, r *http.Request) {
 
 		apiErr := h.service.SetMetric(model.Metrics{
 			ID:    n,
-			MType: model.Gauge,
+			MType: model.Counter,
 			Delta: &value,
 		})
 		if apiErr != nil {
@@ -108,6 +84,7 @@ func (h *Handlers) UpdateMetricInQuery(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
 	if t == model.Gauge {
 		value, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -129,7 +106,7 @@ func (h *Handlers) UpdateMetricInQuery(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetricInfo(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.GetMetricBody
 
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -184,6 +161,36 @@ func (h *Handlers) GetMetricInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
+}
+
+func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+	var body model.Metrics
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	err = json.Unmarshal(bodyBytes, &body)
+	if err != nil {
+		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		return
+	}
+
+	if !h.service.IsValidMetricType(body.MType) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	apiErr := h.service.SetMetric(body)
+	if apiErr != nil {
+		http.Error(w, apiErr.Message, apiErr.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {

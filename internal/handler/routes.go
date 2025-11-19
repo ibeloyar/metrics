@@ -11,11 +11,11 @@ func InitRoutes(r *chi.Mux, repo *repository.MemStorage) *chi.Mux {
 
 	r.Get("/", handlers.GetMetricsPage)
 
-	r.Post("/value/", handlers.GetMetricInfo)
-	r.Get("/value/{type}/{name}", handlers.GetMetric)
+	r.Post("/value/", handlers.GetMetric)
+	r.Get("/value/{type}/{name}", handlers.GetMetricQuery)
 
 	r.Post("/update/", handlers.UpdateMetric)
-	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricInQuery)
+	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricQuery)
 
 	return r
 }
