@@ -8,7 +8,7 @@ import (
 type Repository struct {
 	metrics     map[string]float64
 	mu          sync.RWMutex
-	pollCounter int
+	pollCounter int64
 }
 
 func NewRepository() *Repository {
@@ -76,7 +76,7 @@ func (r *Repository) SetFromMemStats(stats runtime.MemStats) {
 	r.set("TotalAlloc", float64(stats.TotalAlloc))
 }
 
-func (r *Repository) GetPollCounter() int {
+func (r *Repository) GetPollCounter() int64 {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

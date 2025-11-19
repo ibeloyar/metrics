@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ibeloyar/metrics/internal/model"
@@ -35,31 +36,51 @@ func (s *MemStorage) GetMetrics() map[string]model.Metrics {
 	return s.metrics
 }
 
-func (s *MemStorage) SetMetric(name, metricType string, value float64) error {
+func (s *MemStorage) SetMetric(metric model.Metrics) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.metrics[name] = model.Metrics{
-		ID:    name,
-		MType: metricType,
-		Value: &value,
-		Delta: nil,
-		Hash:  "",
+	switch metric.MType {
+	case "gauge":
+		s.metrics[metric.ID] = model.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+			Value: metric.Value,
+			Delta: nil,
+			Hash:  "",
+		}
+	case "counter":
+		s.metrics[metric.ID] = model.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+			Value: nil,
+			Delta: metric.Delta,
+			Hash:  "",
+		}
+	default:
+		return fmt.Errorf("unknown metric type: %s", metric.MType)
 	}
 
 	return nil
 }
 
-func (s *MemStorage) IncrementCountMetricValue(name string, value float64) error {
+func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	oldMetric := s.GetMetric(name)
 	if oldMetric == nil {
-		return s.SetMetric(name, model.Counter, value)
+		return s.SetMetric(model.Metrics{
+			ID:    name,
+			MType: model.Counter,
+			Value: nil,
+			Delta: delta,
+			Hash:  "",
+		})
 	}
 
-	newValue := value
+	newDelta := delta
 
-	if oldMetric.Value != nil {
-		newValue = newValue + *oldMetric.Value
+	if oldMetric.Delta != nil && delta != nil {
+		v := *newDelta + *oldMetric.Delta
+		newDelta = &v
 	}
 
 	s.mu.Lock()
@@ -68,8 +89,8 @@ func (s *MemStorage) IncrementCountMetricValue(name string, value float64) error
 	s.metrics[name] = model.Metrics{
 		ID:    name,
 		MType: model.Counter,
-		Value: &newValue,
-		Delta: nil,
+		Value: nil,
+		Delta: newDelta,
 		Hash:  "",
 	}
 

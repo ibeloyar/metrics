@@ -10,8 +10,8 @@ func InitRoutes(r *chi.Mux, repo *repository.MemStorage) *chi.Mux {
 	handlers := InitHandlers(service.New(repo))
 
 	r.Get("/", handlers.GetMetricsPage)
-	r.Get("/value/{type}/{name}", handlers.GetMetric)
-	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetric)
+	r.Post("/value/", handlers.GetMetric)
+	r.Post("/update/", handlers.UpdateMetric)
 
 	return r
 }

@@ -18,7 +18,11 @@ func TestSetMetric(t *testing.T) {
 		metricType := model.Counter
 		metricValue := 2.05
 
-		err := storage.SetMetric(metricName, metricType, metricValue)
+		err := storage.SetMetric(model.Metrics{
+			ID:    metricName,
+			MType: metricType,
+			Value: &metricValue,
+		})
 
 		require.Nil(t, err)
 		require.Equal(t, len(storage.metrics), 1)
@@ -40,9 +44,9 @@ func TestIncrementCountMetricValue(t *testing.T) {
 	t.Run("success increment count metric", func(t *testing.T) {
 		metricName := "test_metric"
 		metricType := model.Counter
-		metricValue := float64(5)
+		metricDelta := int64(5)
 
-		err := storage.IncrementCountMetricValue(metricName, metricValue)
+		err := storage.IncrementCountMetricValue(metricName, &metricDelta)
 		assert.Nil(t, err)
 
 		metric, ok := storage.metrics[metricName]
@@ -52,11 +56,11 @@ func TestIncrementCountMetricValue(t *testing.T) {
 
 		assert.Equal(t, metricName, metric.ID)
 		assert.Equal(t, metricType, metric.MType)
-		assert.Equal(t, metricValue, *metric.Value)
+		assert.Equal(t, metricDelta, *metric.Delta)
 
-		addedValue := float64(10)
+		addedDelta := int64(10)
 
-		err = storage.IncrementCountMetricValue(metricName, addedValue)
+		err = storage.IncrementCountMetricValue(metricName, &addedDelta)
 		require.Nil(t, err)
 
 		metric, ok = storage.metrics[metricName]
@@ -66,7 +70,7 @@ func TestIncrementCountMetricValue(t *testing.T) {
 
 		require.Equal(t, metricName, metric.ID)
 		require.Equal(t, metricType, metric.MType)
-		require.Equal(t, metricValue+addedValue, *metric.Value)
+		require.Equal(t, metricDelta+addedDelta, *metric.Delta)
 	})
 }
 
@@ -77,7 +81,11 @@ func TestGetMetric(t *testing.T) {
 	metricType := model.Gauge
 	metricValue := 2.05
 
-	err := storage.SetMetric(metricName, metricType, metricValue)
+	err := storage.SetMetric(model.Metrics{
+		ID:    metricName,
+		MType: metricType,
+		Value: &metricValue,
+	})
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -98,13 +106,21 @@ func TestGetMetric(t *testing.T) {
 	})
 }
 
+func pointer[T any](v T) *T {
+	return &v
+}
+
 func TestGetMetrics(t *testing.T) {
 	storage := New()
 
 	metricNames := []string{"one", "two", "three"}
 
 	for i, v := range metricNames {
-		err := storage.SetMetric(v, "gauge", float64(i)+0.01)
+		err := storage.SetMetric(model.Metrics{
+			ID:    v,
+			MType: model.Gauge,
+			Value: pointer(float64(i) + 0.01),
+		})
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
