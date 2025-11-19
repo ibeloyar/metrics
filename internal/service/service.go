@@ -60,15 +60,15 @@ func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 }
 
 func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {
-	metrics := s.storage.GetMetric(name)
-	if metrics == nil {
+	metric := s.storage.GetMetric(name)
+	if metric == nil {
 		return nil, &model.APIError{
 			Code:    http.StatusNotFound,
 			Message: "metric not found",
 		}
 	}
 
-	return metrics, nil
+	return metric, nil
 }
 
 func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {

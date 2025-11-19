@@ -26,6 +26,10 @@ func Run(config config.Config) error {
 	sendMetricTicker := time.NewTicker(time.Duration(config.ReportIntervalSec) * time.Second)
 	defer sendMetricTicker.Stop()
 
+	runtime.ReadMemStats(&m)
+
+	repo.SetFromMemStats(m)
+
 	for {
 		select {
 		case <-readMetricTicker.C:

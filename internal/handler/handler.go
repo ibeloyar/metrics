@@ -129,22 +129,22 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	metric, apiErr := h.service.GetMetric(body.ID)
 	if apiErr != nil && apiErr.Code == http.StatusNotFound {
-		metric := model.Metrics{
+		defaultMetric := model.Metrics{
 			ID:    body.ID,
 			MType: body.MType,
 		}
 
 		if body.MType == "gauge" {
 			g := float64(0)
-			metric.Value = &g
+			defaultMetric.Value = &g
 		}
 
 		if body.MType == "counter" {
 			d := int64(0)
-			metric.Delta = &d
+			defaultMetric.Delta = &d
 		}
 
-		response, err := json.Marshal(metric)
+		response, err := json.Marshal(defaultMetric)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
@@ -156,7 +156,16 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, _ := json.Marshal(metric)
+	if metric.MType != body.MType {
+		http.Error(w, "wrong metric type", http.StatusBadRequest)
+		return
+	}
+
+	response, err := json.Marshal(metric)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -202,8 +211,11 @@ func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 		</thead>
 		<tbody>
 			{{range .}}
-			<tr><td>{{.ID}}</td><td>{{.Value}}</td></tr>
-			{{end}}
+			<tr>
+			   <td>{{.ID}}</td>
+			   <td>{{if eq .MType "gauge"}}{{.Value}}{{else if eq .MType "counter"}}{{.Delta}}{{end}}</td>
+			</tr>
+		   {{end}}
 		</tbody>
 	</table>
 	`

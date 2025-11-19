@@ -41,7 +41,7 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 	defer s.mu.Unlock()
 
 	switch metric.MType {
-	case "gauge":
+	case model.Gauge:
 		s.metrics[metric.ID] = model.Metrics{
 			ID:    metric.ID,
 			MType: metric.MType,
@@ -49,7 +49,7 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 			Delta: nil,
 			Hash:  "",
 		}
-	case "counter":
+	case model.Counter:
 		s.metrics[metric.ID] = model.Metrics{
 			ID:    metric.ID,
 			MType: metric.MType,
