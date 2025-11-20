@@ -5,10 +5,15 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func New() (*zap.SugaredLogger, error) {
-	logger, err := zap.NewDevelopment()
+	config := zap.NewDevelopmentConfig()
+
+	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+
+	logger, err := config.Build()
 	if err != nil {
 		return nil, err
 	}

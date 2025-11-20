@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/http"
+	"time"
 )
 
 type Service struct {
@@ -94,7 +95,19 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 
 	response, err := s.client.Do(request)
 	if err != nil {
-		return err
+		time.Sleep(5 * time.Millisecond)
+
+		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(bodyBytes))
+		if err != nil {
+			return err
+		}
+
+		request.Header.Set("Content-Type", "application/json")
+
+		response, err = s.client.Do(request)
+		if err != nil {
+			return err
+		}
 	}
 	response.Body.Close()
 
