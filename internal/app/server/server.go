@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
 	"github.com/ibeloyar/metrics/internal/repository"
@@ -22,6 +23,7 @@ func Run(config config.Config) {
 	repo := repository.New()
 
 	router.Use(logger.LoggingMiddleware(lg))
+	router.Use(middleware.Recoverer)
 
 	lg.Infof("Starting server on %s", config.Addr)
 	if err := http.ListenAndServe(config.Addr, handler.InitRoutes(router, repo)); err != nil {

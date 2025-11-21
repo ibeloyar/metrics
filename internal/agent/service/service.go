@@ -1,6 +1,8 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -12,17 +14,37 @@ type Service struct {
 	addr   string
 }
 
+type SendMetricBody struct {
+	ID    string   `json:"id"`              // metric name
+	MType string   `json:"type"`            // gauge || counter
+	Delta *int64   `json:"delta,omitempty"` // metric value if MType counter
+	Value *float64 `json:"value,omitempty"` // metric value if MType gauge
+}
+
+func pointer[T any](v T) *T {
+	return &v
+}
+
 func NewService(addr string) *Service {
 	return &Service{
-		client: &http.Client{
-			Timeout: time.Second * 1,
-		},
-		addr: addr,
+		client: &http.Client{},
+		addr:   addr,
 	}
 }
 
-func (s *Service) SendPollCounter(pollCounter int) error {
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", s.addr, pollCounter), "text/plain", nil)
+func (s *Service) SendPollCounter(pollCounter int64) error {
+	bodyStruct := SendMetricBody{
+		ID:    "PollCount",
+		MType: "counter",
+		Delta: pointer(pollCounter),
+	}
+
+	bodyBytes, err := json.Marshal(bodyStruct)
+	if err != nil {
+		return err
+	}
+
+	response, err := s.client.Post(fmt.Sprintf("http://%s/update/", s.addr), "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
@@ -32,7 +54,18 @@ func (s *Service) SendPollCounter(pollCounter int) error {
 }
 
 func (s *Service) SendRandomValue() error {
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", s.addr, rand.Float64()), "text/plain", nil)
+	bodyStruct := SendMetricBody{
+		ID:    "RandomValue",
+		MType: "gauge",
+		Value: pointer(rand.Float64()),
+	}
+
+	bodyBytes, err := json.Marshal(bodyStruct)
+	if err != nil {
+		return err
+	}
+
+	response, err := s.client.Post(fmt.Sprintf("http://%s/update/", s.addr), "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
@@ -42,22 +75,43 @@ func (s *Service) SendRandomValue() error {
 }
 
 func (s *Service) SendGaugeMetric(name string, value float64) error {
-	request, err := http.NewRequest(
-		http.MethodPost,
-		fmt.Sprintf("http://%s/update/gauge/%s/%f", s.addr, name, value),
-		nil,
-	)
+	bodyStruct := SendMetricBody{
+		ID:    name,
+		MType: "gauge",
+		Value: pointer(value),
+	}
+
+	bodyBytes, err := json.Marshal(bodyStruct)
 	if err != nil {
 		return err
 	}
 
-	request.Header.Set("Content-Type", "text/plain")
-
-	response, err := s.client.Do(request)
+	response, err := s.doSendGauge(bodyBytes)
 	if err != nil {
-		return err
+		time.Sleep(5 * time.Millisecond)
+
+		response, err = s.doSendGauge(bodyBytes)
+		if err != nil {
+			return err
+		}
+		response.Body.Close()
+
+		return nil
 	}
 	response.Body.Close()
 
 	return nil
+}
+
+func (s *Service) doSendGauge(body []byte) (*http.Response, error) {
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := s.client.Do(request)
+
+	return response, err
 }

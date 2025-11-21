@@ -18,6 +18,11 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`
 }
 
+type GetMetricBody struct {
+	ID    string `json:"id"`
+	MType string `json:"type"`
+}
+
 type APIError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
