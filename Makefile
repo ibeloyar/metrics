@@ -21,9 +21,19 @@ run-server:
 test:
 	$(GO) test -v ./... | { grep -v 'no test files'; true; }
 
-.PHONY: test_iter4
-test_iter4:
-	 metricstest_v2 -test.v -test.run=^TestIteration4$$ -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080
+.PHONY: test_cover
+test_cover:
+	$(GO) test -coverprofile=coverage.out ./...
+	$(GO) tool cover -func=coverage.out
+	rm coverage.out
+
+.PHONY: test_iter
+test_iter:
+ifdef ITER
+	metricstest_v2 -test.v -test.run=^TestIteration$(ITER) -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080
+else
+	@echo "Require variable ITER not found"
+endif
 
 .PHONY: help
 help:
@@ -33,4 +43,5 @@ help:
 	@echo "run-server        | run metric server"
 	@echo "build             | build agent and server"
 	@echo "test              | run tests with 'clean' out"
-	@echo "test_iterX        | run tests for iteration X"
+	@echo "test_cover        | run tests with coverage info"
+	@echo "test_iter         | run tests for iteration X; EXAMPLE: make ITER=5 test_iter"
