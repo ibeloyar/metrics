@@ -94,8 +94,9 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 		if err != nil {
 			return err
 		}
+		response.Body.Close()
 	}
-	defer response.Body.Close()
+	response.Body.Close()
 
 	return nil
 }
