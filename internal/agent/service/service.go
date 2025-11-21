@@ -86,25 +86,11 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 		return err
 	}
 
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(bodyBytes))
-	if err != nil {
-		return err
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-
-	response, err := s.client.Do(request)
+	response, err := s.doSendGauge(bodyBytes)
 	if err != nil {
 		time.Sleep(5 * time.Millisecond)
 
-		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(bodyBytes))
-		if err != nil {
-			return err
-		}
-
-		request.Header.Set("Content-Type", "application/json")
-
-		response, err = s.client.Do(request)
+		response, err = s.doSendGauge(bodyBytes)
 		if err != nil {
 			return err
 		}
@@ -112,4 +98,17 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 	defer response.Body.Close()
 
 	return nil
+}
+
+func (s *Service) doSendGauge(body []byte) (*http.Response, error) {
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := s.client.Do(request)
+
+	return response, err
 }
