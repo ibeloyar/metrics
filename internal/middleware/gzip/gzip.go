@@ -71,11 +71,11 @@ func Middleware(h http.Handler) http.Handler {
 		ow := w
 
 		accept := r.Header.Get("Accept")
-		isJsonOrHtml := strings.Contains(accept, "application/json") || strings.Contains(accept, "text/html")
+		isJSONOrHTML := strings.Contains(accept, "application/json") || strings.Contains(accept, "text/html")
 
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip && isJsonOrHtml {
+		if supportsGzip && isJSONOrHTML {
 			cw := newCompressWriter(w)
 
 			ow = cw
@@ -87,9 +87,9 @@ func Middleware(h http.Handler) http.Handler {
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 
 		contentType := r.Header.Get("Content-Type")
-		isJsonOrHtmlBody := strings.Contains(contentType, "application/json") || strings.Contains(contentType, "text/html")
+		isJSONOrHTMLBody := strings.Contains(contentType, "application/json") || strings.Contains(contentType, "text/html")
 
-		if sendsGzip && isJsonOrHtmlBody {
+		if sendsGzip && isJSONOrHTMLBody {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)

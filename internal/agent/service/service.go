@@ -34,20 +34,26 @@ func NewService(addr string) *Service {
 }
 
 func (s *Service) SendPollCounter(pollCounter int64) error {
-	bodyStruct := SendMetricBody{
+	bodyBytes, err := json.Marshal(SendMetricBody{
 		ID:    "PollCount",
 		MType: "counter",
 		Delta: pointer(pollCounter),
-	}
-
-	bodyBytes, err := json.Marshal(bodyStruct)
+	})
 	if err != nil {
 		return err
 	}
 
 	response, err := s.doSendGzip(bodyBytes)
 	if err != nil {
-		return err
+		time.Sleep(5 * time.Millisecond)
+
+		response, err = s.doSendGzip(bodyBytes)
+		if err != nil {
+			return err
+		}
+		response.Body.Close()
+
+		return nil
 	}
 	response.Body.Close()
 
@@ -55,20 +61,26 @@ func (s *Service) SendPollCounter(pollCounter int64) error {
 }
 
 func (s *Service) SendRandomValue() error {
-	bodyStruct := SendMetricBody{
+	bodyBytes, err := json.Marshal(SendMetricBody{
 		ID:    "RandomValue",
 		MType: "gauge",
 		Value: pointer(rand.Float64()),
-	}
-
-	bodyBytes, err := json.Marshal(bodyStruct)
+	})
 	if err != nil {
 		return err
 	}
 
 	response, err := s.doSendGzip(bodyBytes)
 	if err != nil {
-		return err
+		time.Sleep(5 * time.Millisecond)
+
+		response, err = s.doSendGzip(bodyBytes)
+		if err != nil {
+			return err
+		}
+		response.Body.Close()
+
+		return nil
 	}
 	response.Body.Close()
 
@@ -76,13 +88,11 @@ func (s *Service) SendRandomValue() error {
 }
 
 func (s *Service) SendGaugeMetric(name string, value float64) error {
-	bodyStruct := SendMetricBody{
+	bodyBytes, err := json.Marshal(SendMetricBody{
 		ID:    name,
 		MType: "gauge",
 		Value: pointer(value),
-	}
-
-	bodyBytes, err := json.Marshal(bodyStruct)
+	})
 	if err != nil {
 		return err
 	}

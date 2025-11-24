@@ -30,7 +30,7 @@ test_cover:
 .PHONY: test_iter
 test_iter:
 ifdef ITER
-	metricstest_v2 -test.v -test.run=^TestIteration$(ITER) -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080
+	metricstest_v2 -test.v -test.run=^TestIteration$(ITER) -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080 -file-storage-path=data/metrics.json
 else
 	@echo "Require variable ITER not found"
 endif

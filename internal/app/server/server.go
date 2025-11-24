@@ -21,14 +21,19 @@ func Run(config config.Config) {
 	}
 
 	router := chi.NewRouter()
-	repo := repository.New()
+	repo := repository.New(config.FileStoragePath, config.StoreInterval, config.Restore)
+
+	if err := repo.Init(); err != nil {
+		lg.Fatal(err)
+	}
 
 	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
-	lg.Infof("Starting server on %s", config.Addr)
+	lg.Infof("Starting server on %s %d", config.Addr, config.StoreInterval)
 	if err := http.ListenAndServe(config.Addr, handler.InitRoutes(router, repo)); err != nil {
+		repo.Close()
 		lg.Fatal(err)
 	}
 }
