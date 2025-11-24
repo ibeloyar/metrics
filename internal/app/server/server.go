@@ -24,6 +24,7 @@ func Run(config config.Config) {
 	repo := repository.New(config.FileStoragePath, config.StoreInterval, config.Restore)
 
 	if err := repo.Init(); err != nil {
+		repo.Close()
 		lg.Fatal(err)
 	}
 
