@@ -11,7 +11,6 @@ import (
 
 func TestService(t *testing.T) {
 	cfg := config.Config{
-		Addr:            ":8080",
 		StoreInterval:   300,
 		Restore:         true,
 		FileStoragePath: "./testdata",
