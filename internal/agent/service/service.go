@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -44,7 +45,7 @@ func (s *Service) SendPollCounter(pollCounter int64) error {
 		return err
 	}
 
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/", s.addr), "application/json", bytes.NewReader(bodyBytes))
+	response, err := s.doSendGzip(bodyBytes)
 	if err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func (s *Service) SendRandomValue() error {
 		return err
 	}
 
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/", s.addr), "application/json", bytes.NewReader(bodyBytes))
+	response, err := s.doSendGzip(bodyBytes)
 	if err != nil {
 		return err
 	}
@@ -86,11 +87,11 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 		return err
 	}
 
-	response, err := s.doSendGauge(bodyBytes)
+	response, err := s.doSendGzip(bodyBytes)
 	if err != nil {
 		time.Sleep(5 * time.Millisecond)
 
-		response, err = s.doSendGauge(bodyBytes)
+		response, err = s.doSendGzip(bodyBytes)
 		if err != nil {
 			return err
 		}
@@ -103,13 +104,27 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 	return nil
 }
 
-func (s *Service) doSendGauge(body []byte) (*http.Response, error) {
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(body))
+func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+
+	_, err := gw.Write(body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = gw.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		return nil, err
 	}
 
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Encoding", "gzip")
 
 	response, err := s.client.Do(request)
 

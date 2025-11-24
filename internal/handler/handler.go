@@ -228,12 +228,12 @@ func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 
 	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
 
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
 	err := t.Execute(w, metrics)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
 }

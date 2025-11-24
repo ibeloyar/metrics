@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
+	"github.com/ibeloyar/metrics/internal/middleware/gzip"
 	"github.com/ibeloyar/metrics/internal/repository"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
@@ -22,6 +23,7 @@ func Run(config config.Config) {
 	router := chi.NewRouter()
 	repo := repository.New()
 
+	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
