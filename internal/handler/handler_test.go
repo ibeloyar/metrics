@@ -12,10 +12,19 @@ import (
 	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository"
 	"github.com/stretchr/testify/assert"
+
+	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
 func pointer[T any](v T) *T {
 	return &v
+}
+
+var testServerConfig = config.Config{
+	Addr:            ":8080",
+	StoreInterval:   300,
+	FileStoragePath: "data/metrics.json",
+	Restore:         true,
 }
 
 func TestUpdateMetric(t *testing.T) {
@@ -31,7 +40,7 @@ func TestUpdateMetric(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	s := repository.New()
+	s := repository.New(testServerConfig.FileStoragePath, testServerConfig.StoreInterval, testServerConfig.Restore)
 
 	router := InitRoutes(r, s)
 

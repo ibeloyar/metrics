@@ -22,6 +22,7 @@ type Config struct {
 
 func Read() Config {
 	config := Config{}
+	
 	flag.Uint64Var(&config.StoreInterval, "i", DefaultStoreInterval, "Save metrics to file interval")
 	flag.StringVar(&config.FileStoragePath, "f", DefaultFileStoragePath, "File storage path")
 	flag.BoolVar(&config.Restore, "r", DefaultRestore, "Get restore metrics from file on start")
