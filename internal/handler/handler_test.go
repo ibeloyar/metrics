@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/model"
+	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 	"github.com/stretchr/testify/assert"
 
@@ -40,7 +41,10 @@ func TestUpdateMetric(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	s := memstorage.New(testServerConfig.FileStoragePath, testServerConfig.StoreInterval, testServerConfig.Restore)
+
+	fileStorage := filestorage.New(testServerConfig.FileStoragePath)
+	
+	s := memstorage.New(fileStorage, testServerConfig.StoreInterval, testServerConfig.Restore)
 
 	router := InitRoutes(r, s)
 

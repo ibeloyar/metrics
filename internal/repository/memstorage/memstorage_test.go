@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ibeloyar/metrics/internal/model"
+	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +22,8 @@ var testConfig = config.Config{
 // TestSetMetric - require test, because if this function does not work, all other tests are useless
 func TestSetMetric(t *testing.T) {
 
-	storage := New(testConfig.FileStoragePath, testConfig.StoreInterval, testConfig.Restore)
+	fileStorage := filestorage.New(testConfig.FileStoragePath)
+	storage := New(fileStorage, testConfig.StoreInterval, testConfig.Restore)
 
 	t.Run("success set metric", func(t *testing.T) {
 		metricName := "test_metric"
@@ -49,7 +51,8 @@ func TestSetMetric(t *testing.T) {
 }
 
 func TestIncrementCountMetricValue(t *testing.T) {
-	storage := New(testConfig.FileStoragePath, testConfig.StoreInterval, testConfig.Restore)
+	fileStorage := filestorage.New(testConfig.FileStoragePath)
+	storage := New(fileStorage, testConfig.StoreInterval, testConfig.Restore)
 
 	t.Run("success increment count metric", func(t *testing.T) {
 		metricName := "test_metric"
@@ -85,7 +88,8 @@ func TestIncrementCountMetricValue(t *testing.T) {
 }
 
 func TestGetMetric(t *testing.T) {
-	storage := New(testConfig.FileStoragePath, testConfig.StoreInterval, testConfig.Restore)
+	fileStorage := filestorage.New(testConfig.FileStoragePath)
+	storage := New(fileStorage, testConfig.StoreInterval, testConfig.Restore)
 
 	metricName := "test_metric"
 	metricType := model.Gauge
@@ -121,7 +125,8 @@ func pointer[T any](v T) *T {
 }
 
 func TestGetMetrics(t *testing.T) {
-	storage := New(testConfig.FileStoragePath, testConfig.StoreInterval, testConfig.Restore)
+	fileStorage := filestorage.New(testConfig.FileStoragePath)
+	storage := New(fileStorage, testConfig.StoreInterval, testConfig.Restore)
 
 	metricNames := []string{"one", "two", "three"}
 

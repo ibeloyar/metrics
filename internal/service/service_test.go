@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ibeloyar/metrics/internal/model"
+	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
@@ -15,7 +16,8 @@ func TestService(t *testing.T) {
 		Restore:         true,
 		FileStoragePath: "./testdata",
 	}
-	repo := memstorage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	fileStorage := filestorage.New(cfg.FileStoragePath)
+	repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
 	srv := New(repo)
 
 	t.Run("IsValidMetricType", func(t *testing.T) {
