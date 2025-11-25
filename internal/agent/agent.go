@@ -10,10 +10,16 @@ import (
 	"github.com/ibeloyar/metrics/internal/agent/config"
 	"github.com/ibeloyar/metrics/internal/agent/repository"
 	"github.com/ibeloyar/metrics/internal/agent/service"
+	"github.com/ibeloyar/metrics/internal/logger"
 )
 
 func Run(config config.Config) error {
 	var m runtime.MemStats
+
+	lg, err := logger.New()
+	if err != nil {
+		return err
+	}
 
 	repo := repository.NewRepository()
 
@@ -41,18 +47,23 @@ func Run(config config.Config) error {
 
 			for name, value := range metrics {
 				if err := as.SendGaugeMetric(name, value); err != nil {
+					lg.Error(err)
 					return err
 				}
 			}
 
 			if err := as.SendPollCounter(pollCounter); err != nil {
+				lg.Error(err)
 				return err
 			}
 			repo.ResetPollCounter()
 
 			if err := as.SendRandomValue(); err != nil {
+				lg.Error(err)
 				return err
 			}
+
+			lg.Info("Metrics sent")
 		case <-ctx.Done():
 			return nil
 		}
