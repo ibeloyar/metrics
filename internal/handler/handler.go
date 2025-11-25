@@ -128,31 +128,8 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metric, apiErr := h.service.GetMetric(body.ID)
-	if apiErr != nil && apiErr.Code == http.StatusNotFound {
-		defaultMetric := model.Metrics{
-			ID:    body.ID,
-			MType: body.MType,
-		}
-
-		if body.MType == "gauge" {
-			g := float64(0)
-			defaultMetric.Value = &g
-		}
-
-		if body.MType == "counter" {
-			d := int64(0)
-			defaultMetric.Delta = &d
-		}
-
-		response, err := json.Marshal(defaultMetric)
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(response)
+	if apiErr != nil {
+		http.Error(w, apiErr.Message, apiErr.Code)
 		return
 	}
 
