@@ -2,11 +2,11 @@ package handler
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/ibeloyar/metrics/internal/repository"
+	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 	"github.com/ibeloyar/metrics/internal/service"
 )
 
-func InitRoutes(r *chi.Mux, repo *repository.MemStorage) *chi.Mux {
+func InitRoutes(r *chi.Mux, repo *memstorage.MemStorage) *chi.Mux {
 	handlers := InitHandlers(service.New(repo))
 
 	r.Get("/", handlers.GetMetricsPage)

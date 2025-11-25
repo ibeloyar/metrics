@@ -1,30 +1,31 @@
-package repository
+package memstorage
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
-const (
-	filePermission    = 0o644
-	filePermissionAll = 0o777
-)
+type FileStorage interface {
+	Save(map[string]model.Metrics) error
+	Load() (map[string]model.Metrics, error)
+}
 
 type MemStorage struct {
 	metrics          map[string]model.Metrics
-	mu               sync.RWMutex
 	saveMetricTicker *time.Ticker
-	fileStoragePath  string
 	restore          bool
+
+	fileStorage FileStorage
+
+	mu sync.RWMutex
 }
 
-func New(fileStoragePath string, storeSaveInterval uint64, restore bool) *MemStorage {
+func New(fileStorage FileStorage, storeSaveInterval uint64, restore bool) *MemStorage {
 	var saveMetricTicker *time.Ticker = nil
 
 	if storeSaveInterval > 0 {
@@ -32,18 +33,22 @@ func New(fileStoragePath string, storeSaveInterval uint64, restore bool) *MemSto
 	}
 
 	return &MemStorage{
+		fileStorage:      fileStorage,
 		metrics:          make(map[string]model.Metrics),
 		saveMetricTicker: saveMetricTicker,
-		fileStoragePath:  fileStoragePath,
 		restore:          restore,
 	}
 }
 
 func (s *MemStorage) Init() error {
 	if s.restore {
-		err := s.restoreData()
-		if err != nil {
+		metrics, err := s.fileStorage.Load()
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
+		}
+
+		if metrics != nil {
+			s.SetMetrics(metrics)
 		}
 	}
 
@@ -57,7 +62,9 @@ func (s *MemStorage) Init() error {
 func (s *MemStorage) startSavingMetrics() {
 	go func() {
 		for range s.saveMetricTicker.C {
-			err := s.writeMetricsToFile()
+			metrics := s.GetMetrics()
+
+			err := s.fileStorage.Save(metrics)
 			if err != nil {
 				return
 			}
@@ -65,49 +72,17 @@ func (s *MemStorage) startSavingMetrics() {
 	}()
 }
 
-func (s *MemStorage) Close() {
+func (s *MemStorage) Shutdown() {
 	if s.saveMetricTicker != nil {
 		s.saveMetricTicker.Stop()
 	}
-}
 
-func (s *MemStorage) writeMetricsToFile() error {
-	data, err := json.MarshalIndent(s.metrics, "", "    ")
+	metrics := s.GetMetrics()
+
+	err := s.fileStorage.Save(metrics)
 	if err != nil {
-		return err
+		return
 	}
-	if err := os.Mkdir(filepath.Dir(s.fileStoragePath), filePermissionAll); err != nil && !os.IsExist(err) {
-		return err
-	}
-	if err := os.WriteFile(s.fileStoragePath, data, filePermission); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *MemStorage) restoreData() error {
-	data, err := os.ReadFile(s.fileStoragePath)
-	if err != nil {
-		defaultFileStorageData := make(map[string]model.Metrics)
-
-		data, err = json.MarshalIndent(defaultFileStorageData, "", "    ")
-		if err != nil {
-			return err
-		}
-		if err := os.Mkdir(filepath.Dir(s.fileStoragePath), filePermissionAll); err != nil && !os.IsExist(err) {
-			return err
-		}
-		if err := os.WriteFile(s.fileStoragePath, data, filePermission); err != nil {
-			return err
-		}
-	}
-
-	if err := json.Unmarshal(data, &s.metrics); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
@@ -128,6 +103,13 @@ func (s *MemStorage) GetMetrics() map[string]model.Metrics {
 	return s.metrics
 }
 
+func (s *MemStorage) SetMetrics(metrics map[string]model.Metrics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.metrics = metrics
+}
+
 func (s *MemStorage) SetMetric(metric model.Metrics) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -141,10 +123,6 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 			Delta: nil,
 			Hash:  "",
 		}
-
-		if s.saveMetricTicker == nil {
-			return s.writeMetricsToFile()
-		}
 	case model.Counter:
 		s.metrics[metric.ID] = model.Metrics{
 			ID:    metric.ID,
@@ -153,12 +131,14 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 			Delta: metric.Delta,
 			Hash:  "",
 		}
-
-		if s.saveMetricTicker == nil {
-			return s.writeMetricsToFile()
-		}
 	default:
 		return fmt.Errorf("unknown metric type: %s", metric.MType)
+	}
+
+	if s.saveMetricTicker == nil {
+		metrics := s.GetMetrics()
+
+		return s.fileStorage.Save(metrics)
 	}
 
 	return nil
@@ -195,7 +175,9 @@ func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error 
 	}
 
 	if s.saveMetricTicker == nil {
-		return s.writeMetricsToFile()
+		metrics := s.GetMetrics()
+
+		return s.fileStorage.Save(metrics)
 	}
 
 	return nil

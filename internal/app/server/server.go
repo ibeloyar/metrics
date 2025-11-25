@@ -9,7 +9,8 @@ import (
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
 	"github.com/ibeloyar/metrics/internal/middleware/gzip"
-	"github.com/ibeloyar/metrics/internal/repository"
+	"github.com/ibeloyar/metrics/internal/repository/filestorage"
+	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
@@ -22,10 +23,11 @@ func Run(config config.Config) {
 	defer lg.Sync()
 
 	router := chi.NewRouter()
-	repo := repository.New(config.FileStoragePath, config.StoreInterval, config.Restore)
+	fileStorage := filestorage.New(config.FileStoragePath)
+	repo := memstorage.New(fileStorage, config.StoreInterval, config.Restore)
 
 	if err := repo.Init(); err != nil {
-		repo.Close()
+		repo.Shutdown()
 		lg.Fatal(err)
 	}
 
@@ -35,7 +37,7 @@ func Run(config config.Config) {
 
 	lg.Infof("Starting server on %s %d", config.Addr, config.StoreInterval)
 	if err := http.ListenAndServe(config.Addr, handler.InitRoutes(router, repo)); err != nil {
-		repo.Close()
+		repo.Shutdown()
 		lg.Fatal(err)
 	}
 }
