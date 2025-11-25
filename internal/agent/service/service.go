@@ -43,21 +43,7 @@ func (s *Service) SendPollCounter(pollCounter int64) error {
 		return err
 	}
 
-	response, err := s.doSendGzip(bodyBytes)
-	if err != nil {
-		time.Sleep(5 * time.Millisecond)
-
-		response, err = s.doSendGzip(bodyBytes)
-		if err != nil {
-			return err
-		}
-		response.Body.Close()
-
-		return nil
-	}
-	response.Body.Close()
-
-	return nil
+	return s.doSendWithRetry(bodyBytes)
 }
 
 func (s *Service) SendRandomValue() error {
@@ -70,21 +56,7 @@ func (s *Service) SendRandomValue() error {
 		return err
 	}
 
-	response, err := s.doSendGzip(bodyBytes)
-	if err != nil {
-		time.Sleep(5 * time.Millisecond)
-
-		response, err = s.doSendGzip(bodyBytes)
-		if err != nil {
-			return err
-		}
-		response.Body.Close()
-
-		return nil
-	}
-	response.Body.Close()
-
-	return nil
+	return s.doSendWithRetry(bodyBytes)
 }
 
 func (s *Service) SendGaugeMetric(name string, value float64) error {
@@ -97,11 +69,15 @@ func (s *Service) SendGaugeMetric(name string, value float64) error {
 		return err
 	}
 
-	response, err := s.doSendGzip(bodyBytes)
+	return s.doSendWithRetry(bodyBytes)
+}
+
+func (s *Service) doSendWithRetry(body []byte) error {
+	response, err := s.doSendGzip(body)
 	if err != nil {
 		time.Sleep(5 * time.Millisecond)
 
-		response, err = s.doSendGzip(bodyBytes)
+		response, err = s.doSendGzip(body)
 		if err != nil {
 			return err
 		}

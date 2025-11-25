@@ -10,10 +10,16 @@ import (
 	"github.com/ibeloyar/metrics/internal/agent/config"
 	"github.com/ibeloyar/metrics/internal/agent/repository"
 	"github.com/ibeloyar/metrics/internal/agent/service"
+	"github.com/ibeloyar/metrics/internal/logger"
 )
 
 func Run(config config.Config) error {
 	var m runtime.MemStats
+
+	lg, err := logger.New()
+	if err != nil {
+		return err
+	}
 
 	repo := repository.NewRepository()
 
@@ -26,6 +32,7 @@ func Run(config config.Config) error {
 	sendMetricTicker := time.NewTicker(time.Duration(config.ReportIntervalSec) * time.Second)
 	defer sendMetricTicker.Stop()
 
+	lg.Info("Starting metric agent...")
 	for {
 		select {
 		case <-readMetricTicker.C:
@@ -53,6 +60,8 @@ func Run(config config.Config) error {
 			if err := as.SendRandomValue(); err != nil {
 				return err
 			}
+
+			lg.Info("Metrics sent successfully")
 		case <-ctx.Done():
 			return nil
 		}
