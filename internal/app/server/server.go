@@ -19,6 +19,7 @@ func Run(config config.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer lg.Sync()
 
 	router := chi.NewRouter()
 	repo := repository.New(config.FileStoragePath, config.StoreInterval, config.Restore)
