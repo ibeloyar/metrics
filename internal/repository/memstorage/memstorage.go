@@ -72,7 +72,7 @@ func (s *MemStorage) startSavingMetrics() {
 	}()
 }
 
-func (s *MemStorage) Shutdown() {
+func (s *MemStorage) Shutdown() error {
 	if s.saveMetricTicker != nil {
 		s.saveMetricTicker.Stop()
 	}
@@ -81,8 +81,10 @@ func (s *MemStorage) Shutdown() {
 
 	err := s.fileStorage.Save(metrics)
 	if err != nil {
-		return
+		return err
 	}
+
+	return nil
 }
 
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
