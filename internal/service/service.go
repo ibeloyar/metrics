@@ -10,8 +10,8 @@ type MemStorage interface {
 	GetMetric(name string) *model.Metrics
 	GetMetrics() map[string]model.Metrics
 
-	SetMetric(name, metricType string, value float64) error
-	IncrementCountMetricValue(name string, value float64) error
+	SetMetric(metric model.Metrics) error
+	IncrementCountMetricValue(name string, delta *int64) error
 }
 
 type Service struct {
@@ -24,17 +24,17 @@ func New(s MemStorage) *Service {
 	}
 }
 
-func (s *Service) SetMetric(metricName, metricType string, metricValue float64) *model.APIError {
-	if !s.IsValidMetricType(metricType) {
+func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
+	if !s.IsValidMetricType(metric.MType) {
 		return &model.APIError{
 			Code:    http.StatusBadRequest,
 			Message: "invalid metric type",
 		}
 	}
 
-	switch metricType {
+	switch metric.MType {
 	case model.Gauge:
-		err := s.storage.SetMetric(metricName, metricType, metricValue)
+		err := s.storage.SetMetric(metric)
 		if err != nil {
 			return &model.APIError{
 				Code:    http.StatusInternalServerError,
@@ -43,7 +43,7 @@ func (s *Service) SetMetric(metricName, metricType string, metricValue float64) 
 		}
 		return nil
 	case model.Counter:
-		err := s.storage.IncrementCountMetricValue(metricName, metricValue)
+		err := s.storage.IncrementCountMetricValue(metric.ID, metric.Delta)
 		if err != nil {
 			return &model.APIError{
 				Code:    http.StatusInternalServerError,
@@ -60,15 +60,15 @@ func (s *Service) SetMetric(metricName, metricType string, metricValue float64) 
 }
 
 func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {
-	metrics := s.storage.GetMetric(name)
-	if metrics == nil {
+	metric := s.storage.GetMetric(name)
+	if metric == nil {
 		return nil, &model.APIError{
 			Code:    http.StatusNotFound,
 			Message: "metric not found",
 		}
 	}
 
-	return metrics, nil
+	return metric, nil
 }
 
 func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {

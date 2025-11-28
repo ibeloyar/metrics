@@ -5,7 +5,7 @@ import (
 
 	"github.com/ibeloyar/metrics/internal/agent"
 
-	config "github.com/ibeloyar/metrics/internal/config/agent"
+	"github.com/ibeloyar/metrics/internal/agent/config"
 )
 
 func main() {

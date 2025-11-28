@@ -1,6 +1,9 @@
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -12,52 +15,104 @@ type Service struct {
 	addr   string
 }
 
+type SendMetricBody struct {
+	ID    string   `json:"id"`              // metric name
+	MType string   `json:"type"`            // gauge || counter
+	Delta *int64   `json:"delta,omitempty"` // metric value if MType counter
+	Value *float64 `json:"value,omitempty"` // metric value if MType gauge
+}
+
+func pointer[T any](v T) *T {
+	return &v
+}
+
 func NewService(addr string) *Service {
 	return &Service{
-		client: &http.Client{
-			Timeout: time.Second * 1,
-		},
-		addr: addr,
+		client: &http.Client{},
+		addr:   addr,
 	}
 }
 
-func (s *Service) SendPollCounter(pollCounter int) error {
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/counter/PollCount/%d", s.addr, pollCounter), "text/plain", nil)
+func (s *Service) SendPollCounter(pollCounter int64) error {
+	bodyBytes, err := json.Marshal(SendMetricBody{
+		ID:    "PollCount",
+		MType: "counter",
+		Delta: pointer(pollCounter),
+	})
 	if err != nil {
 		return err
 	}
-	response.Body.Close()
 
-	return nil
+	return s.doSendWithRetry(bodyBytes)
 }
 
 func (s *Service) SendRandomValue() error {
-	response, err := s.client.Post(fmt.Sprintf("http://%s/update/gauge/RandomValue/%f", s.addr, rand.Float64()), "text/plain", nil)
+	bodyBytes, err := json.Marshal(SendMetricBody{
+		ID:    "RandomValue",
+		MType: "gauge",
+		Value: pointer(rand.Float64()),
+	})
 	if err != nil {
 		return err
+	}
+
+	return s.doSendWithRetry(bodyBytes)
+}
+
+func (s *Service) SendGaugeMetric(name string, value float64) error {
+	bodyBytes, err := json.Marshal(SendMetricBody{
+		ID:    name,
+		MType: "gauge",
+		Value: pointer(value),
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.doSendWithRetry(bodyBytes)
+}
+
+func (s *Service) doSendWithRetry(body []byte) error {
+	response, err := s.doSendGzip(body)
+	if err != nil {
+		time.Sleep(5 * time.Millisecond)
+
+		response, err = s.doSendGzip(body)
+		if err != nil {
+			return err
+		}
+		response.Body.Close()
+
+		return nil
 	}
 	response.Body.Close()
 
 	return nil
 }
 
-func (s *Service) SendGaugeMetric(name string, value float64) error {
-	request, err := http.NewRequest(
-		http.MethodPost,
-		fmt.Sprintf("http://%s/update/gauge/%s/%f", s.addr, name, value),
-		nil,
-	)
+func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+
+	_, err := gw.Write(body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	request.Header.Set("Content-Type", "text/plain")
+	err = gw.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Encoding", "gzip")
 
 	response, err := s.client.Do(request)
-	if err != nil {
-		return err
-	}
-	response.Body.Close()
 
-	return nil
+	return response, err
 }
