@@ -18,6 +18,7 @@ type Service interface {
 	SetMetric(metric model.Metrics) *model.APIError
 
 	IsValidMetricType(metricType string) bool
+	ValidateMetric(metric model.Metrics) error
 }
 
 type MetricsHandler struct {
@@ -68,7 +69,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 	}
 
 	if t == model.Counter {
-		value, err := strconv.ParseInt(v, 10, 64)
+		delta, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -77,7 +78,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 		apiErr := h.service.SetMetric(model.Metrics{
 			ID:    n,
 			MType: model.Counter,
-			Delta: &value,
+			Delta: &delta,
 		})
 		if apiErr != nil {
 			http.Error(w, apiErr.Message, apiErr.Code)
@@ -167,6 +168,12 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	if !h.service.IsValidMetricType(body.MType) {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.ValidateMetric(body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

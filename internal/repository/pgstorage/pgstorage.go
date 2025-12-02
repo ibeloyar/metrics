@@ -93,7 +93,10 @@ func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 		return errors.New("cannot increment metric value, delta is nil")
 	}
 
-	query := `UPDATE metrics SET delta = delta + $1 WHERE id = $2 AND mtype = 'counter';`
+	query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
+		ON CONFLICT (id) DO UPDATE
+		SET delta = COALESCE(metrics.delta, 0) + $1
+		WHERE metrics.mtype = 'counter';`
 
 	_, err := s.db.Exec(query, *delta, name)
 
