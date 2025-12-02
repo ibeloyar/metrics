@@ -44,7 +44,9 @@ func (s *PGStorage) GetMetric(name string) *model.Metrics {
 
 func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 	result := make(map[string]model.Metrics)
+
 	query := `SELECT id, mtype, delta, value, hash FROM metrics`
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return result
@@ -57,6 +59,11 @@ func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 			result[m.ID] = m
 		}
 	}
+
+	if err := rows.Err(); err != nil {
+		return make(map[string]model.Metrics)
+	}
+
 	return result
 }
 

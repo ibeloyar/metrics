@@ -62,6 +62,8 @@ func initDependencies(cfg config.Config) (*zap.SugaredLogger, service.Storage, e
 			}
 			return nil, nil, err
 		}
+
+		storage = repo
 	}
 
 	return lg, storage, nil
