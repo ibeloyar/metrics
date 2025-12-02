@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultAddress         = "0.0.0.0:8080"
+	DefaultAddress         = ":8080"
 	DefaultStoreInterval   = 300
 	DefaultFileStoragePath = "data/metrics.json"
 	DefaultRestore         = false
