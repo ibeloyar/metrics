@@ -18,19 +18,21 @@ type Service interface {
 	SetMetric(metric model.Metrics) *model.APIError
 
 	IsValidMetricType(metricType string) bool
+
+	Ping() error
 }
 
-type Handlers struct {
+type MetricsHandler struct {
 	service Service
 }
 
-func InitHandlers(s Service) *Handlers {
-	return &Handlers{
+func NewMetricsHandler(s Service) *MetricsHandler {
+	return &MetricsHandler{
 		service: s,
 	}
 }
 
-func (h *Handlers) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	n := chi.URLParam(r, "name")
 	t := chi.URLParam(r, "type")
 
@@ -57,7 +59,7 @@ func (h *Handlers) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	n := chi.URLParam(r, "name")
 	v := chi.URLParam(r, "value")
@@ -106,7 +108,7 @@ func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.GetMetricBody
 
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -149,7 +151,7 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.Metrics
 
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -179,7 +181,7 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 	metricsPageTemplate := `
 	<h1>Metrics</h1>
 	<table border="1">
@@ -213,4 +215,13 @@ func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
+	err := h.service.Ping()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

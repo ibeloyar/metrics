@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultAddress         = ":8080"
+	DefaultAddress         = "0.0.0.0:8080"
 	DefaultStoreInterval   = 300
 	DefaultFileStoragePath = "data/metrics.json"
 	DefaultRestore         = false
@@ -18,15 +18,17 @@ type Config struct {
 	StoreInterval   uint64 `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func Read() Config {
 	config := Config{}
-	
+
 	flag.Uint64Var(&config.StoreInterval, "i", DefaultStoreInterval, "Save metrics to file interval")
 	flag.StringVar(&config.FileStoragePath, "f", DefaultFileStoragePath, "File storage path")
 	flag.BoolVar(&config.Restore, "r", DefaultRestore, "Get restore metrics from file on start")
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
+	flag.StringVar(&config.DatabaseDSN, "d", "", "Database connect string")
 
 	flag.Parse()
 

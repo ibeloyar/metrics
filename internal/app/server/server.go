@@ -17,27 +17,34 @@ import (
 	"github.com/ibeloyar/metrics/internal/middleware/gzip"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
+	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
+	"github.com/ibeloyar/metrics/internal/service"
 	"go.uber.org/zap"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
 func Run(cfg config.Config) {
-	lg, repo, err := initDependencies(cfg)
+	lg, repo, pgStorage, err := initDependencies(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize dependencies: %v", err)
 	}
 	defer lg.Sync()
 
-	srv := buildServer(cfg, repo, lg)
+	srv := buildServer(cfg, repo, pgStorage, lg)
 
 	run(srv, repo, lg, cfg.Addr)
 }
 
-func initDependencies(cfg config.Config) (*zap.SugaredLogger, *memstorage.MemStorage, error) {
+func initDependencies(cfg config.Config) (*zap.SugaredLogger, *memstorage.MemStorage, *pgstorage.PGStorage, error) {
 	lg, err := logger.New()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+
+	pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	fileStorage := filestorage.New(cfg.FileStoragePath)
@@ -48,20 +55,24 @@ func initDependencies(cfg config.Config) (*zap.SugaredLogger, *memstorage.MemSto
 		if shutdownErr != nil {
 			lg.Fatalf("Shutdown (repo) error after Init failure: %v", shutdownErr)
 		}
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return lg, repo, nil
+	return lg, repo, pgStorage, nil
 }
 
-func buildServer(cfg config.Config, repo *memstorage.MemStorage, lg *zap.SugaredLogger) *http.Server {
+func buildServer(cfg config.Config, repo *memstorage.MemStorage, db *pgstorage.PGStorage, lg *zap.SugaredLogger) *http.Server {
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
-	router = handler.InitRoutes(router, repo)
+	s := service.New(repo, db)
+
+	metricsHandler := handler.NewMetricsHandler(s)
+
+	router = handler.InitRoutes(router, metricsHandler)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,

@@ -14,13 +14,19 @@ type MemStorage interface {
 	IncrementCountMetricValue(name string, delta *int64) error
 }
 
-type Service struct {
-	storage MemStorage
+type DBStorage interface {
+	Ping() error
 }
 
-func New(s MemStorage) *Service {
+type Service struct {
+	storage MemStorage
+	db      DBStorage
+}
+
+func New(s MemStorage, db DBStorage) *Service {
 	return &Service{
 		storage: s,
+		db:      db,
 	}
 }
 
@@ -80,4 +86,13 @@ func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {
 	}
 
 	return result, nil
+}
+
+func (s *Service) Ping() error {
+	err := s.db.Ping()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

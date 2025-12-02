@@ -31,7 +31,14 @@ test_cover:
 test_iter:
 ifdef ITER
 	rm -rf ./data
-	metricstest_v2 -test.v -test.run=^TestIteration$(ITER) -binary-path=./cmd/server/server -agent-binary-path=cmd/agent/agent -source-path=. -server-port=8080 -file-storage-path=data/metrics.json
+	metricstest_v2 -test.v \
+	-test.run=^TestIteration$(ITER) \
+	-binary-path=./cmd/server/server \
+	-agent-binary-path=cmd/agent/agent \
+	-source-path=. \
+	-server-port=8080 \
+	-database-dsn="host=192.168.0.101 user=metrics password=metrics dbname=metrics sslmode=disable" \
+	-file-storage-path=data/metrics.json
 else
 	@echo "Require variable ITER not found"
 endif
