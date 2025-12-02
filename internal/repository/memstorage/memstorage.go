@@ -184,3 +184,8 @@ func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error 
 
 	return nil
 }
+
+func (s *MemStorage) Ping() error {
+	// TODO: реализовать
+	return nil
+}

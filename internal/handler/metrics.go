@@ -12,14 +12,12 @@ import (
 )
 
 type Service interface {
+	Ping() error
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
-
 	SetMetric(metric model.Metrics) *model.APIError
 
 	IsValidMetricType(metricType string) bool
-
-	Ping() error
 }
 
 type MetricsHandler struct {

@@ -25,50 +25,56 @@ import (
 )
 
 func Run(cfg config.Config) {
-	lg, repo, pgStorage, err := initDependencies(cfg)
+	lg, storage, err := initDependencies(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize dependencies: %v", err)
 	}
 	defer lg.Sync()
 
-	srv := buildServer(cfg, repo, pgStorage, lg)
+	srv := buildServer(cfg, storage, lg)
 
-	run(srv, repo, lg, cfg.Addr)
+	run(srv, storage, lg, cfg.Addr)
 }
 
-func initDependencies(cfg config.Config) (*zap.SugaredLogger, *memstorage.MemStorage, *pgstorage.PGStorage, error) {
+func initDependencies(cfg config.Config) (*zap.SugaredLogger, service.Storage, error) {
+	var storage service.Storage
+
 	lg, err := logger.New()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	fileStorage := filestorage.New(cfg.FileStoragePath)
-	repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
-
-	if err := repo.Init(); err != nil {
-		shutdownErr := repo.Shutdown()
-		if shutdownErr != nil {
-			lg.Fatalf("Shutdown (repo) error after Init failure: %v", shutdownErr)
+	if cfg.DatabaseDSN != "" {
+		pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
+		if err != nil {
+			return nil, nil, err
 		}
-		return nil, nil, nil, err
+
+		storage = pgStorage
+	} else {
+		fileStorage := filestorage.New(cfg.FileStoragePath)
+		repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
+
+		if err := repo.Init(); err != nil {
+			shutdownErr := repo.Shutdown()
+			if shutdownErr != nil {
+				lg.Fatalf("Shutdown (repo) error after Init failure: %v", shutdownErr)
+			}
+			return nil, nil, err
+		}
 	}
 
-	return lg, repo, pgStorage, nil
+	return lg, storage, nil
 }
 
-func buildServer(cfg config.Config, repo *memstorage.MemStorage, db *pgstorage.PGStorage, lg *zap.SugaredLogger) *http.Server {
+func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger) *http.Server {
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
-	s := service.New(repo, db)
+	s := service.New(storage)
 
 	metricsHandler := handler.NewMetricsHandler(s)
 
@@ -82,7 +88,7 @@ func buildServer(cfg config.Config, repo *memstorage.MemStorage, db *pgstorage.P
 	return srv
 }
 
-func run(srv *http.Server, repo *memstorage.MemStorage, lg *zap.SugaredLogger, addr string) {
+func run(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) {
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -104,7 +110,7 @@ func run(srv *http.Server, repo *memstorage.MemStorage, lg *zap.SugaredLogger, a
 		lg.Fatalf("Shutdown (server) error: %v", err)
 	}
 
-	if err := repo.Shutdown(); err != nil {
+	if err := storage.Shutdown(); err != nil {
 		lg.Fatalf("Shutdown (repo) error: %v", err)
 	}
 

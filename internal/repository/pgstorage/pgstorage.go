@@ -2,7 +2,9 @@ package pgstorage
 
 import (
 	"database/sql"
+	"errors"
 
+	"github.com/ibeloyar/metrics/internal/model"
 	_ "github.com/lib/pq"
 )
 
@@ -24,3 +26,84 @@ func New(connStr string) (*PGStorage, error) {
 func (s *PGStorage) Ping() error {
 	return s.db.Ping()
 }
+
+func (s *PGStorage) GetMetric(name string) *model.Metrics {
+	var m model.Metrics
+	query := `SELECT id, mtype, delta, value, hash FROM metrics WHERE id = $1`
+	row := s.db.QueryRow(query, name)
+	err := row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		// Обработка ошибок по необходимости
+		return nil
+	}
+	return &m
+}
+
+func (s *PGStorage) GetMetrics() map[string]model.Metrics {
+	result := make(map[string]model.Metrics)
+	query := `SELECT id, mtype, delta, value, hash FROM metrics`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m model.Metrics
+		err := rows.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+		if err == nil {
+			result[m.ID] = m
+		}
+	}
+	return result
+}
+
+func (s *PGStorage) SetMetric(metric model.Metrics) error {
+	// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
+	query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (id) DO UPDATE SET
+      		mtype = EXCLUDED.mtype,
+      		delta = EXCLUDED.delta,
+      		value = EXCLUDED.value,
+      		hash = EXCLUDED.hash
+    `
+
+	_, err := s.db.Exec(query,
+		metric.ID,
+		metric.MType,
+		metric.Delta,
+		metric.Value,
+		metric.Hash,
+	)
+	return err
+}
+
+func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
+	if delta == nil {
+		return errors.New("cannot increment metric value, delta is nil")
+	}
+
+	query := `UPDATE metrics SET delta = delta + $1 WHERE id = $2 AND mtype = 'counter';`
+
+	_, err := s.db.Exec(query, *delta, name)
+
+	return err
+}
+
+func (s *PGStorage) Shutdown() error {
+	return s.db.Close()
+}
+
+/*
+Доработайте сервис и добавьте поддержку СУБД PostgreSQL для хранения метрик.
+
+1) Сервису нужно самостоятельно создать все необходимые таблицы в базе данных. Схема и формат хранения остаются на ваше усмотрение.
+2) Используйте инструмент миграций для создания и изменения схемы базы данных.
+	Для хранения значений gauge рекомендуется использовать тип double precision.
+3) При отсутствии переменной окружения DATABASE_DSN или флага командной строки -d либо при их пустых значениях, вернитесь последовательно к:
+	хранению метрик в файле — при наличии соответствующей переменной окружения или флага командной строки;
+	хранению метрик в памяти.
+*/

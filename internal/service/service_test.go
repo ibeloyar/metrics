@@ -3,12 +3,10 @@ package service
 import (
 	"testing"
 
+	config "github.com/ibeloyar/metrics/internal/config/server"
 	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
-	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
-
-	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
 func TestService(t *testing.T) {
@@ -17,13 +15,10 @@ func TestService(t *testing.T) {
 		Restore:         true,
 		FileStoragePath: "./testdata",
 	}
+
 	fileStorage := filestorage.New(cfg.FileStoragePath)
-	dbStorage, err := pgstorage.New(cfg.DatabaseDSN)
-	if err != nil {
-		t.Error("pgstorage init error")
-	}
 	repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
-	srv := New(repo, dbStorage)
+	srv := New(repo)
 
 	t.Run("IsValidMetricType", func(t *testing.T) {
 		if !srv.IsValidMetricType(model.Gauge) {
