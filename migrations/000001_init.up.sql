@@ -1,4 +1,4 @@
-CREATE TABLE metrics (
+CREATE TABLE IF NOT EXISTS metrics (
     id TEXT PRIMARY KEY,
     mtype TEXT NOT NULL CHECK (mtype IN ('counter', 'gauge')),
     delta BIGINT,

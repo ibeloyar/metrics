@@ -3,8 +3,13 @@ package pgstorage
 import (
 	"database/sql"
 	"errors"
+	"path/filepath"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/ibeloyar/metrics/internal/model"
+
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
 
@@ -15,6 +20,29 @@ type PGStorage struct {
 func New(connStr string) (*PGStorage, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
+		return nil, err
+	}
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{
+		MigrationsTable: "schema_migrations",
+		SchemaName:      "public",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	migrationsPath := "./migrations"
+	absPath, err := filepath.Abs(migrationsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance("file://"+absPath, "postgres", driver)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return nil, err
 	}
 
