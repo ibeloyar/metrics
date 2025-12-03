@@ -11,6 +11,7 @@ type MetricHandlers interface {
 	UpdateMetricQuery(w http.ResponseWriter, r *http.Request)
 	GetMetric(w http.ResponseWriter, r *http.Request)
 	UpdateMetric(w http.ResponseWriter, r *http.Request)
+	UpdateMetrics(w http.ResponseWriter, r *http.Request)
 	GetMetricsPage(w http.ResponseWriter, r *http.Request)
 	Ping(w http.ResponseWriter, r *http.Request)
 }
@@ -24,6 +25,7 @@ func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers) *chi.Mux {
 	r.Get("/value/{type}/{name}", metricHandlers.GetMetricQuery)
 
 	r.Post("/update/", metricHandlers.UpdateMetric)
+	r.Post("/updates/", metricHandlers.UpdateMetrics)
 	r.Post("/update/{type}/{name}/{value}", metricHandlers.UpdateMetricQuery)
 
 	return r

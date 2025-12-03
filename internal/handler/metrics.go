@@ -16,9 +16,11 @@ type Service interface {
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
 	SetMetric(metric model.Metrics) *model.APIError
+	SetMetrics(metrics []model.Metrics) *model.APIError
 
 	IsValidMetricType(metricType string) bool
 	ValidateMetric(metric model.Metrics) error
+	ValidateMetrics(metrics []model.Metrics) error
 }
 
 type MetricsHandler struct {
@@ -178,6 +180,37 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiErr := h.service.SetMetric(body)
+	if apiErr != nil {
+		http.Error(w, apiErr.Message, apiErr.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+	var bodyMetrics []model.Metrics
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	err = json.Unmarshal(bodyBytes, &bodyMetrics)
+	if err != nil {
+		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.service.ValidateMetrics(bodyMetrics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	apiErr := h.service.SetMetrics(bodyMetrics)
 	if apiErr != nil {
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return

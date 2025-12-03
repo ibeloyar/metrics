@@ -1,9 +1,11 @@
 package pgstorage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -116,6 +118,42 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
 	return err
 }
 
+func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	for _, metric := range metrics {
+		// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
+		query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (id) DO UPDATE SET
+				mtype = EXCLUDED.mtype,
+				delta = COALESCE(metrics.delta, 0) + EXCLUDED.delta,
+				value = EXCLUDED.value,
+				hash = EXCLUDED.hash
+		`
+
+		_, err := tx.ExecContext(ctx, query,
+			metric.ID,
+			metric.MType,
+			metric.Delta,
+			metric.Value,
+			metric.Hash,
+		)
+
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	if delta == nil {
 		return errors.New("cannot increment metric value, delta is nil")
@@ -135,13 +173,15 @@ func (s *PGStorage) Shutdown() error {
 	return s.db.Close()
 }
 
-/*
-Доработайте сервис и добавьте поддержку СУБД PostgreSQL для хранения метрик.
-
-1) Сервису нужно самостоятельно создать все необходимые таблицы в базе данных. Схема и формат хранения остаются на ваше усмотрение.
-2) Используйте инструмент миграций для создания и изменения схемы базы данных.
-	Для хранения значений gauge рекомендуется использовать тип double precision.
-3) При отсутствии переменной окружения DATABASE_DSN или флага командной строки -d либо при их пустых значениях, вернитесь последовательно к:
-	хранению метрик в файле — при наличии соответствующей переменной окружения или флага командной строки;
-	хранению метрик в памяти.
-*/
+// Задание по треку «Сервис сбора метрик и алертинга»
+// Сервер:
+//	Добавьте новый хендлер POST /updates/, принимающий в теле запроса множество метрик в формате: []Metrics (списка метрик).
+// Агент:
+//	Научите агент работать с использованием нового API (отправлять метрики батчами).
+//
+// Стоит помнить, что:
+// 	- нужно соблюдать обратную совместимость;
+//  - отправлять пустые батчи не нужно;
+//  - вы умеете сжимать контент по алгоритму gzip;
+//  - изменение в базе можно выполнять в рамках одной транзакции или одного запроса;
+//  - необходимо избегать формирования условий для возникновения состояния гонки (race condition).

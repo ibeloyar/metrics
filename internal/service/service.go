@@ -11,6 +11,7 @@ type Storage interface {
 	GetMetric(name string) *model.Metrics
 	GetMetrics() map[string]model.Metrics
 	SetMetric(metric model.Metrics) error
+	SetMetrics(metrics []model.Metrics) error
 	IncrementCountMetricValue(name string, delta *int64) error
 
 	Shutdown() error
@@ -59,6 +60,18 @@ func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 			Message: "invalid metric type",
 		}
 	}
+}
+
+func (s *Service) SetMetrics(metrics []model.Metrics) *model.APIError {
+	err := s.storage.SetMetrics(metrics)
+	if err != nil {
+		return &model.APIError{
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {

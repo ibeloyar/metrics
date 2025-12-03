@@ -29,3 +29,13 @@ func (s *Service) ValidateMetric(metric model.Metrics) error {
 
 	return nil
 }
+
+func (s *Service) ValidateMetrics(metrics []model.Metrics) error {
+	for _, metric := range metrics {
+		if err := s.ValidateMetric(metric); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
