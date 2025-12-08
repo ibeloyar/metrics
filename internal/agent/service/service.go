@@ -50,12 +50,13 @@ func (s *Service) doSendAllWithRetry(body []byte) error {
 			time.Sleep(delay)
 
 			response, err = s.doSendAllGzip(body)
-			if err != nil {
-				lastErr = err
-			}
 			response.Body.Close()
 
-			return nil
+			if err == nil {
+				return nil
+			}
+
+			lastErr = err
 		}
 
 		return lastErr
