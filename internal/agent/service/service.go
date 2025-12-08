@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,10 +22,6 @@ type SendMetricBody struct {
 	Value *float64 `json:"value,omitempty"` // metric value if MType gauge
 }
 
-func pointer[T any](v T) *T {
-	return &v
-}
-
 func NewService(addr string) *Service {
 	return &Service{
 		client: &http.Client{},
@@ -32,51 +29,104 @@ func NewService(addr string) *Service {
 	}
 }
 
-//func (s *Service) SendPollCounter(pollCounter int64) error {
-//	bodyBytes, err := json.Marshal(SendMetricBody{
-//		ID:    "PollCount",
-//		MType: "counter",
-//		Delta: pointer(pollCounter),
-//	})
-//	if err != nil {
-//		return err
+//	func (s *Service) SendPollCounter(pollCounter int64) error {
+//		bodyBytes, err := json.Marshal(SendMetricBody{
+//			ID:    "PollCount",
+//			MType: "counter",
+//			Delta: pointer(pollCounter),
+//		})
+//		if err != nil {
+//			return err
+//		}
+//
+//		return s.doSendWithRetry(bodyBytes)
 //	}
 //
-//	return s.doSendWithRetry(bodyBytes)
-//}
-
-//func (s *Service) SendRandomValue() error {
-//	bodyBytes, err := json.Marshal(SendMetricBody{
-//		ID:    "RandomValue",
-//		MType: "gauge",
-//		Value: pointer(rand.Float64()),
-//	})
-//	if err != nil {
-//		return err
+//	func (s *Service) SendRandomValue() error {
+//		bodyBytes, err := json.Marshal(SendMetricBody{
+//			ID:    "RandomValue",
+//			MType: "gauge",
+//			Value: pointer(rand.Float64()),
+//		})
+//		if err != nil {
+//			return err
+//		}
+//
+//		return s.doSendWithRetry(bodyBytes)
 //	}
 //
-//	return s.doSendWithRetry(bodyBytes)
-//}
-
-//func (s *Service) SendGaugeMetric(name string, value float64) error {
-//	bodyBytes, err := json.Marshal(SendMetricBody{
-//		ID:    name,
-//		MType: "gauge",
-//		Value: pointer(value),
-//	})
-//	if err != nil {
-//		return err
+//	func (s *Service) SendGaugeMetric(name string, value float64) error {
+//		bodyBytes, err := json.Marshal(SendMetricBody{
+//			ID:    name,
+//			MType: "gauge",
+//			Value: pointer(value),
+//		})
+//		if err != nil {
+//			return err
+//		}
+//
+//		return s.doSendWithRetry(bodyBytes)
 //	}
 //
-//	return s.doSendWithRetry(bodyBytes)
+//	func (s *Service) doSendWithRetry(body []byte) error {
+//		response, err := s.doSendGzip(body)
+//		if err != nil {
+//			time.Sleep(5 * time.Millisecond)
+//
+//			response, err = s.doSendGzip(body)
+//			if err != nil {
+//				return err
+//			}
+//			response.Body.Close()
+//
+//			return nil
+//		}
+//		response.Body.Close()
+//
+//		return nil
+//	}
+//func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
+//	var buf bytes.Buffer
+//	gw := gzip.NewWriter(&buf)
+//
+//	_, err := gw.Write(body)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	err = gw.Close()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/update/", s.addr), bytes.NewReader(buf.Bytes()))
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	request.Header.Set("Content-Type", "application/json")
+//	request.Header.Set("Content-Encoding", "gzip")
+//
+//	response, err := s.client.Do(request)
+//
+//	return response, err
 //}
 
-func (s *Service) doSendWithRetry(body []byte) error {
-	response, err := s.doSendGzip(body)
+func (s *Service) SendAllMetrics(metrics []SendMetricBody) error {
+	bodyBytes, err := json.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	return s.doSendAllWithRetry(bodyBytes)
+}
+
+func (s *Service) doSendAllWithRetry(body []byte) error {
+	response, err := s.doSendAllGzip(body)
 	if err != nil {
 		time.Sleep(5 * time.Millisecond)
 
-		response, err = s.doSendGzip(body)
+		response, err = s.doSendAllGzip(body)
 		if err != nil {
 			return err
 		}
@@ -89,7 +139,10 @@ func (s *Service) doSendWithRetry(body []byte) error {
 	return nil
 }
 
-func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
+func (s *Service) doSendAllGzip(body []byte) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 
@@ -103,7 +156,7 @@ func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
 		return nil, err
 	}
 
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/updates/", s.addr), bytes.NewReader(buf.Bytes()))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://%s/updates/", s.addr), bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		return nil, err
 	}
@@ -114,13 +167,4 @@ func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
 	response, err := s.client.Do(request)
 
 	return response, err
-}
-
-func (s *Service) SendAllValues(metrics []SendMetricBody) error {
-	bodyBytes, err := json.Marshal(metrics)
-	if err != nil {
-		return err
-	}
-
-	return s.doSendWithRetry(bodyBytes)
 }

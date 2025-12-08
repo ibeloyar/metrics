@@ -14,6 +14,10 @@ import (
 	"github.com/ibeloyar/metrics/internal/logger"
 )
 
+func pointer[T any](v T) *T {
+	return &v
+}
+
 func Run(config config.Config) error {
 	var m runtime.MemStats
 
@@ -68,25 +72,24 @@ func Run(config config.Config) error {
 				allMetrics = append(allMetrics, service.SendMetricBody{
 					ID:    name,
 					MType: "gauge",
-					Delta: nil,
-					Value: &value,
+					Value: pointer(value),
 				})
 			}
 
 			allMetrics = append(allMetrics, service.SendMetricBody{
 				ID:    "PollCount",
 				MType: "counter",
-				Delta: &pollCounter,
+				Delta: pointer(pollCounter),
 			})
 
 			randomValue := rand.Float64()
 			allMetrics = append(allMetrics, service.SendMetricBody{
 				ID:    "RandomValue",
 				MType: "gauge",
-				Value: &randomValue,
+				Value: pointer(randomValue),
 			})
 
-			if err := as.SendAllValues(allMetrics); err != nil {
+			if err := as.SendAllMetrics(allMetrics); err != nil {
 				return err
 			}
 
