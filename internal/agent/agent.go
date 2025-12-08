@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"math/rand/v2"
 	"os/signal"
 	"runtime"
 	"syscall"
@@ -46,18 +47,46 @@ func Run(config config.Config) error {
 			metrics := repo.GetAll()
 			pollCounter := repo.GetPollCounter()
 
+			//for name, value := range metrics {
+			//	if err := as.SendGaugeMetric(name, value); err != nil {
+			//		return err
+			//	}
+			//}
+			//
+			//if err := as.SendPollCounter(pollCounter); err != nil {
+			//	return err
+			//}
+			//repo.ResetPollCounter()
+			//
+			//if err := as.SendRandomValue(); err != nil {
+			//	return err
+			//}
+
+			var allMetrics []service.SendMetricBody
+
 			for name, value := range metrics {
-				if err := as.SendGaugeMetric(name, value); err != nil {
-					return err
-				}
+				allMetrics = append(allMetrics, service.SendMetricBody{
+					ID:    name,
+					MType: "gauge",
+					Delta: nil,
+					Value: &value,
+				})
 			}
 
-			if err := as.SendPollCounter(pollCounter); err != nil {
-				return err
-			}
-			repo.ResetPollCounter()
+			allMetrics = append(allMetrics, service.SendMetricBody{
+				ID:    "PollCount",
+				MType: "counter",
+				Delta: &pollCounter,
+			})
 
-			if err := as.SendRandomValue(); err != nil {
+			randomValue := rand.Float64()
+			allMetrics = append(allMetrics, service.SendMetricBody{
+				ID:    "RandomValue",
+				MType: "gauge",
+				Value: &randomValue,
+			})
+
+			if err := as.SendAllValues(allMetrics); err != nil {
 				return err
 			}
 
