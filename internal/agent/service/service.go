@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+const (
+	maxSendAttempts = 3
+)
+
 type Service struct {
 	client *http.Client
 	addr   string
@@ -45,7 +49,7 @@ func (s *Service) doSendAllWithRetry(body []byte) error {
 
 		lastErr = err
 
-		for attempt := 0; attempt < 3; attempt++ {
+		for attempt := 0; attempt < maxSendAttempts; attempt++ {
 			delay := getDelayFromAttempt(attempt)
 			time.Sleep(delay)
 

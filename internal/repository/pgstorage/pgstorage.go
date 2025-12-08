@@ -15,6 +15,14 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	migrationsTable = "schema_migrations"
+	schemaName      = "public"
+	migrationsPath  = "./migrations"
+
+	maxAttempts = 3
+)
+
 type PGStorage struct {
 	db         *sql.DB
 	classifier *PostgresErrorClassifier
@@ -27,14 +35,13 @@ func New(connStr string) (*PGStorage, error) {
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{
-		MigrationsTable: "schema_migrations",
-		SchemaName:      "public",
+		MigrationsTable: migrationsTable,
+		SchemaName:      schemaName,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	migrationsPath := "./migrations"
 	absPath, err := filepath.Abs(migrationsPath)
 	if err != nil {
 		return nil, err
@@ -62,40 +69,74 @@ func (s *PGStorage) Ping() error {
 func (s *PGStorage) GetMetric(name string) *model.Metrics {
 	var m model.Metrics
 	query := `SELECT id, mtype, delta, value, hash FROM metrics WHERE id = $1`
-	row := s.db.QueryRow(query, name)
-	err := row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+	//row := s.db.QueryRow(query, name)
+	//err := row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+	//if err != nil {
+	//	if err == sql.ErrNoRows {
+	//		return nil
+	//	}
+	//	// Обработка ошибок по необходимости
+	//	return nil
+	//}
+	//return &m
+	err := s.executeWithRetryConnection(func(db *sql.DB) error {
+		row := db.QueryRow(query, name)
+		return row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+	})
+
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
-		// Обработка ошибок по необходимости
-		return nil
+		return nil // Другие ошибки (включая исчерпанные retry)
 	}
 	return &m
 }
 
 func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 	result := make(map[string]model.Metrics)
+	//
+	//query := `SELECT id, mtype, delta, value, hash FROM metrics`
+	//
+	//rows, err := s.db.Query(query)
+	//if err != nil {
+	//	return result
+	//}
+	//defer rows.Close()
+	//for rows.Next() {
+	//	var m model.Metrics
+	//	err := rows.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
+	//	if err == nil {
+	//		result[m.ID] = m
+	//	}
+	//}
+	//
+	//if err := rows.Err(); err != nil {
+	//	return make(map[string]model.Metrics)
+	//}
+	//
+	//return result
+	err := s.executeWithRetryConnection(func(db *sql.DB) error {
+		query := `SELECT id, mtype, delta, value, hash FROM metrics`
+		rows, err := db.Query(query)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
 
-	query := `SELECT id, mtype, delta, value, hash FROM metrics`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return result
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var m model.Metrics
-		err := rows.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
-		if err == nil {
+		for rows.Next() {
+			var m model.Metrics
+			if err := rows.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash); err != nil {
+				return err
+			}
 			result[m.ID] = m
 		}
-	}
+		return rows.Err()
+	})
 
-	if err := rows.Err(); err != nil {
-		return make(map[string]model.Metrics)
+	if err != nil {
+		return make(map[string]model.Metrics) // Возвращаем пустую карту
 	}
-
 	return result
 }
 
@@ -110,51 +151,85 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
       		hash = EXCLUDED.hash
     `
 
-	_, err := s.db.Exec(query,
-		metric.ID,
-		metric.MType,
-		metric.Delta,
-		metric.Value,
-		metric.Hash,
-	)
+	//_, err := s.db.Exec(query,
+	//	metric.ID,
+	//	metric.MType,
+	//	metric.Delta,
+	//	metric.Value,
+	//	metric.Hash,
+	//)
+	//return err
 
-	return err
+	return s.executeWithRetryConnection(func(db *sql.DB) error {
+		_, err := db.Exec(query,
+			metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash,
+		)
+		return err
+	})
+
 }
 
 func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	for _, metric := range metrics {
-		// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
-		query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
-			VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (id) DO UPDATE SET
-				mtype = EXCLUDED.mtype,
-				delta = COALESCE(metrics.delta, 0) + EXCLUDED.delta,
-				value = EXCLUDED.value,
-				hash = EXCLUDED.hash
-		`
+	//tx, err := s.db.Begin()
+	//if err != nil {
+	//	return err
+	//}
+	//for _, metric := range metrics {
+	//	// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
+	//	query := `INSERT INTO metrics (id, mtype, delta, value, hash)
+	//		VALUES ($1, $2, $3, $4, $5)
+	//		ON CONFLICT (id) DO UPDATE SET
+	//			mtype = EXCLUDED.mtype,
+	//			delta = COALESCE(metrics.delta, 0) + EXCLUDED.delta,
+	//			value = EXCLUDED.value,
+	//			hash = EXCLUDED.hash
+	//	`
+	//
+	//	_, err := tx.ExecContext(ctx, query,
+	//		metric.ID,
+	//		metric.MType,
+	//		metric.Delta,
+	//		metric.Value,
+	//		metric.Hash,
+	//	)
+	//
+	//	if err != nil {
+	//		tx.Rollback()
+	//		return err
+	//	}
+	//}
+	//
+	//return tx.Commit()
 
-		_, err := tx.ExecContext(ctx, query,
-			metric.ID,
-			metric.MType,
-			metric.Delta,
-			metric.Value,
-			metric.Hash,
-		)
-
+	return s.executeWithRetryConnection(func(db *sql.DB) error {
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
+		defer tx.Rollback() // гарантированный откат
 
-	return tx.Commit()
+		query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id) DO UPDATE SET
+                mtype = EXCLUDED.mtype,
+                delta = COALESCE(metrics.delta, 0) + EXCLUDED.delta,
+                value = EXCLUDED.value,
+                hash = EXCLUDED.hash`
+
+		for _, metric := range metrics {
+			_, err := tx.ExecContext(ctx, query,
+				metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash,
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		return tx.Commit()
+	})
 }
 
 func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
@@ -162,16 +237,64 @@ func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 		return errors.New("cannot increment metric value, delta is nil")
 	}
 
-	query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
-		ON CONFLICT (id) DO UPDATE
-		SET delta = COALESCE(metrics.delta, 0) + $1
-		WHERE metrics.mtype = 'counter';`
+	//query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
+	//	ON CONFLICT (id) DO UPDATE
+	//	SET delta = COALESCE(metrics.delta, 0) + $1
+	//	WHERE metrics.mtype = 'counter';`
+	//
+	//_, err := s.db.Exec(query, *delta, name)
+	//
+	//return err
 
-	_, err := s.db.Exec(query, *delta, name)
+	return s.executeWithRetryConnection(func(db *sql.DB) error {
+		query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
+            ON CONFLICT (id) DO UPDATE
+            SET delta = COALESCE(metrics.delta, 0) + $1
+            WHERE metrics.mtype = 'counter'`
 
-	return err
+		_, err := db.Exec(query, *delta, name)
+		return err
+	})
 }
 
 func (s *PGStorage) Shutdown() error {
 	return s.db.Close()
+}
+
+func (s *PGStorage) executeWithRetryConnection(operation func(*sql.DB) error) error {
+	err := operation(s.db)
+	if err == nil {
+		return nil
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Проверяем классификацию ошибки
+		if s.classifier.Classify(err) != Retriable {
+			return err // NonRetriable → fail fast
+		}
+
+		delay := getAttemptDelay(attempt)
+		time.Sleep(delay)
+
+		err = operation(s.db)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+	}
+
+	return lastErr // Возвращаем последнюю ошибку после 3 попыток
+}
+
+func getAttemptDelay(attempt int) time.Duration {
+	switch attempt {
+	case 0:
+		return 1 * time.Second
+	case 1:
+		return 3 * time.Second
+	default: // attempt >= 2
+		return 5 * time.Second
+	}
 }
