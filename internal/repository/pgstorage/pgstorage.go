@@ -16,7 +16,8 @@ import (
 )
 
 type PGStorage struct {
-	db *sql.DB
+	db         *sql.DB
+	classifier *PostgresErrorClassifier
 }
 
 func New(connStr string) (*PGStorage, error) {
@@ -49,7 +50,8 @@ func New(connStr string) (*PGStorage, error) {
 	}
 
 	return &PGStorage{
-		db: db,
+		db:         db,
+		classifier: NewPostgresErrorClassifier(),
 	}, nil
 }
 
@@ -115,6 +117,7 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
 		metric.Value,
 		metric.Hash,
 	)
+
 	return err
 }
 
@@ -172,16 +175,3 @@ func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 func (s *PGStorage) Shutdown() error {
 	return s.db.Close()
 }
-
-// Задание по треку «Сервис сбора метрик и алертинга»
-// Сервер:
-//	Добавьте новый хендлер POST /updates/, принимающий в теле запроса множество метрик в формате: []Metrics (списка метрик).
-// Агент:
-//	Научите агент работать с использованием нового API (отправлять метрики батчами).
-//
-// Стоит помнить, что:
-// 	- нужно соблюдать обратную совместимость;
-//  - отправлять пустые батчи не нужно;
-//  - вы умеете сжимать контент по алгоритму gzip;
-//  - изменение в базе можно выполнять в рамках одной транзакции или одного запроса;
-//  - необходимо избегать формирования условий для возникновения состояния гонки (race condition).

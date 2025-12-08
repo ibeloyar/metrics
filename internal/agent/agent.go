@@ -47,26 +47,11 @@ func Run(config config.Config) error {
 
 			repo.IncrementPollCounter()
 		case <-sendMetricTicker.C:
+			var allMetrics []service.SendMetricBody
+
 			as := service.NewService(config.Addr)
 			metrics := repo.GetAll()
 			pollCounter := repo.GetPollCounter()
-
-			//for name, value := range metrics {
-			//	if err := as.SendGaugeMetric(name, value); err != nil {
-			//		return err
-			//	}
-			//}
-			//
-			//if err := as.SendPollCounter(pollCounter); err != nil {
-			//	return err
-			//}
-			//repo.ResetPollCounter()
-			//
-			//if err := as.SendRandomValue(); err != nil {
-			//	return err
-			//}
-
-			var allMetrics []service.SendMetricBody
 
 			for name, value := range metrics {
 				allMetrics = append(allMetrics, service.SendMetricBody{
