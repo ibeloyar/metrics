@@ -52,7 +52,7 @@ func New(connStr string) (*PGStorage, error) {
 		return nil, err
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return nil, err
 	}
 
@@ -69,16 +69,7 @@ func (s *PGStorage) Ping() error {
 func (s *PGStorage) GetMetric(name string) *model.Metrics {
 	var m model.Metrics
 	query := `SELECT id, mtype, delta, value, hash FROM metrics WHERE id = $1`
-	//row := s.db.QueryRow(query, name)
-	//err := row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
-	//if err != nil {
-	//	if err == sql.ErrNoRows {
-	//		return nil
-	//	}
-	//	// Обработка ошибок по необходимости
-	//	return nil
-	//}
-	//return &m
+
 	err := s.executeWithRetryConnection(func(db *sql.DB) error {
 		row := db.QueryRow(query, name)
 		return row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
@@ -95,27 +86,7 @@ func (s *PGStorage) GetMetric(name string) *model.Metrics {
 
 func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 	result := make(map[string]model.Metrics)
-	//
-	//query := `SELECT id, mtype, delta, value, hash FROM metrics`
-	//
-	//rows, err := s.db.Query(query)
-	//if err != nil {
-	//	return result
-	//}
-	//defer rows.Close()
-	//for rows.Next() {
-	//	var m model.Metrics
-	//	err := rows.Scan(&m.ID, &m.MType, &m.Delta, &m.Value, &m.Hash)
-	//	if err == nil {
-	//		result[m.ID] = m
-	//	}
-	//}
-	//
-	//if err := rows.Err(); err != nil {
-	//	return make(map[string]model.Metrics)
-	//}
-	//
-	//return result
+
 	err := s.executeWithRetryConnection(func(db *sql.DB) error {
 		query := `SELECT id, mtype, delta, value, hash FROM metrics`
 		rows, err := db.Query(query)
@@ -151,15 +122,6 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
       		hash = EXCLUDED.hash
     `
 
-	//_, err := s.db.Exec(query,
-	//	metric.ID,
-	//	metric.MType,
-	//	metric.Delta,
-	//	metric.Value,
-	//	metric.Hash,
-	//)
-	//return err
-
 	return s.executeWithRetryConnection(func(db *sql.DB) error {
 		_, err := db.Exec(query,
 			metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash,
@@ -172,37 +134,6 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
 func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-
-	//tx, err := s.db.Begin()
-	//if err != nil {
-	//	return err
-	//}
-	//for _, metric := range metrics {
-	//	// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
-	//	query := `INSERT INTO metrics (id, mtype, delta, value, hash)
-	//		VALUES ($1, $2, $3, $4, $5)
-	//		ON CONFLICT (id) DO UPDATE SET
-	//			mtype = EXCLUDED.mtype,
-	//			delta = COALESCE(metrics.delta, 0) + EXCLUDED.delta,
-	//			value = EXCLUDED.value,
-	//			hash = EXCLUDED.hash
-	//	`
-	//
-	//	_, err := tx.ExecContext(ctx, query,
-	//		metric.ID,
-	//		metric.MType,
-	//		metric.Delta,
-	//		metric.Value,
-	//		metric.Hash,
-	//	)
-	//
-	//	if err != nil {
-	//		tx.Rollback()
-	//		return err
-	//	}
-	//}
-	//
-	//return tx.Commit()
 
 	return s.executeWithRetryConnection(func(db *sql.DB) error {
 		tx, err := db.BeginTx(ctx, nil)
@@ -237,15 +168,6 @@ func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 		return errors.New("cannot increment metric value, delta is nil")
 	}
 
-	//query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
-	//	ON CONFLICT (id) DO UPDATE
-	//	SET delta = COALESCE(metrics.delta, 0) + $1
-	//	WHERE metrics.mtype = 'counter';`
-	//
-	//_, err := s.db.Exec(query, *delta, name)
-	//
-	//return err
-
 	return s.executeWithRetryConnection(func(db *sql.DB) error {
 		query := `INSERT INTO metrics (id, delta, mtype, hash) VALUES ($2, $1, 'counter', '')
             ON CONFLICT (id) DO UPDATE
@@ -269,9 +191,8 @@ func (s *PGStorage) executeWithRetryConnection(operation func(*sql.DB) error) er
 
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		// Проверяем классификацию ошибки
 		if s.classifier.Classify(err) != Retriable {
-			return err // NonRetriable → fail fast
+			return err
 		}
 
 		delay := getAttemptDelay(attempt)

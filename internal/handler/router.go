@@ -7,11 +7,11 @@ import (
 )
 
 type MetricHandlers interface {
-	GetMetricQuery(w http.ResponseWriter, r *http.Request)
-	UpdateMetricQuery(w http.ResponseWriter, r *http.Request)
 	GetMetric(w http.ResponseWriter, r *http.Request)
+	GetMetricQuery(w http.ResponseWriter, r *http.Request)
 	UpdateMetric(w http.ResponseWriter, r *http.Request)
 	UpdateMetrics(w http.ResponseWriter, r *http.Request)
+	UpdateMetricQuery(w http.ResponseWriter, r *http.Request)
 	GetMetricsPage(w http.ResponseWriter, r *http.Request)
 	Ping(w http.ResponseWriter, r *http.Request)
 }

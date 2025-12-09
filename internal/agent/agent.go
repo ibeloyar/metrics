@@ -74,7 +74,8 @@ func Run(config config.Config) error {
 				Value: pointer(randomValue),
 			})
 
-			if err := as.SendAllMetrics(allMetrics); err != nil {
+			if err := as.SendMetrics(allMetrics); err != nil {
+				lg.Error("Error sending metrics: ", err)
 				return err
 			}
 

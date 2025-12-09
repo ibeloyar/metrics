@@ -33,17 +33,17 @@ func NewService(addr string) *Service {
 	}
 }
 
-func (s *Service) SendAllMetrics(metrics []SendMetricBody) error {
+func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 	bodyBytes, err := json.Marshal(metrics)
 	if err != nil {
 		return err
 	}
 
-	return s.doSendAllWithRetry(bodyBytes)
+	return s.doSendWithRetry(bodyBytes)
 }
 
-func (s *Service) doSendAllWithRetry(body []byte) error {
-	response, err := s.doSendAllGzip(body)
+func (s *Service) doSendWithRetry(body []byte) error {
+	response, err := s.doSendGzip(body)
 	if err != nil {
 		var lastErr error
 
@@ -53,7 +53,7 @@ func (s *Service) doSendAllWithRetry(body []byte) error {
 			delay := getDelayFromAttempt(attempt)
 			time.Sleep(delay)
 
-			response, err = s.doSendAllGzip(body)
+			response, err = s.doSendGzip(body)
 			response.Body.Close()
 
 			if err == nil {
@@ -70,7 +70,7 @@ func (s *Service) doSendAllWithRetry(body []byte) error {
 	return nil
 }
 
-func (s *Service) doSendAllGzip(body []byte) (*http.Response, error) {
+func (s *Service) doSendGzip(body []byte) (*http.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
