@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -84,30 +85,28 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	lg.Infof("Starting server on %s", addr)
+	lg.Infof("starting server on %s", addr)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			lg.Fatalf("Server ListenAndServe error: %v", err)
+			lg.Fatalf("server ListenAndServe error: %v", err)
 		}
 	}()
 
 	<-signalCtx.Done()
-	lg.Info("Shutting down server...")
+	lg.Info("shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		lg.Fatalf("Shutdown (server) error: %v", err)
-		return err
+		return fmt.Errorf("shutdown (server) error: %v", err)
 	}
 
 	if err := storage.Shutdown(); err != nil {
-		lg.Fatalf("Shutdown (repo) error: %v", err)
-		return err
+		return fmt.Errorf("shutdown (repo) error: %v", err)
 	}
 
-	lg.Info("Server shutdown success")
+	lg.Info("server shutdown success")
 	return nil
 }

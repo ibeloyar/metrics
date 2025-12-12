@@ -132,7 +132,7 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
 }
 
 func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
 	return s.executeWithRetryConnection(func(db *sql.DB) error {
