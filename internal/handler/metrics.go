@@ -193,7 +193,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()

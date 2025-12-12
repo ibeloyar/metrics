@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,30 +23,19 @@ import (
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
-func Run(cfg config.Config) {
-	lg, storage, err := initDependencies(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize dependencies: %v", err)
-	}
-	defer lg.Sync()
-
-	srv := buildServer(cfg, storage, lg)
-
-	run(srv, storage, lg, cfg.Addr)
-}
-
-func initDependencies(cfg config.Config) (*zap.SugaredLogger, service.Storage, error) {
+func Run(cfg config.Config) error {
 	var storage service.Storage
 
 	lg, err := logger.New()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
+	defer lg.Sync()
 
 	if cfg.DatabaseDSN != "" {
 		pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 
 		storage = pgStorage
@@ -58,15 +46,17 @@ func initDependencies(cfg config.Config) (*zap.SugaredLogger, service.Storage, e
 		if err := repo.Init(); err != nil {
 			shutdownErr := repo.Shutdown()
 			if shutdownErr != nil {
-				lg.Fatalf("Shutdown (repo) error after Init failure: %v", shutdownErr)
+				return shutdownErr
 			}
-			return nil, nil, err
+			return err
 		}
 
 		storage = repo
 	}
 
-	return lg, storage, nil
+	srv := buildServer(cfg, storage, lg)
+
+	return runServer(srv, storage, lg, cfg.Addr)
 }
 
 func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger) *http.Server {
@@ -90,7 +80,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 	return srv
 }
 
-func run(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) {
+func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) error {
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -110,11 +100,14 @@ func run(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr 
 
 	if err := srv.Shutdown(ctx); err != nil {
 		lg.Fatalf("Shutdown (server) error: %v", err)
+		return err
 	}
 
 	if err := storage.Shutdown(); err != nil {
 		lg.Fatalf("Shutdown (repo) error: %v", err)
+		return err
 	}
 
 	lg.Info("Server shutdown success")
+	return nil
 }

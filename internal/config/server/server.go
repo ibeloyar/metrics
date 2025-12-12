@@ -21,7 +21,7 @@ type Config struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
-func Read() Config {
+func Read() (Config, error) {
 	config := Config{}
 
 	flag.Uint64Var(&config.StoreInterval, "i", DefaultStoreInterval, "Save metrics to file interval")
@@ -34,8 +34,8 @@ func Read() Config {
 
 	err := env.Parse(&config)
 	if err != nil {
-		panic(err)
+		return config, err
 	}
 
-	return config
+	return config, nil
 }
