@@ -73,9 +73,11 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 
-	if _, err = s.client.Do(request); err != nil {
+	response, err := s.client.Do(request)
+	if err != nil {
 		return err
 	}
+	response.Body.Close()
 
 	return nil
 }
