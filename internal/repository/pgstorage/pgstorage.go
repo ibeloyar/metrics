@@ -9,10 +9,10 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/ibeloyar/metrics/internal/model"
-
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
+	"github.com/ibeloyar/metrics/internal/model"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
 const (
@@ -29,10 +29,12 @@ type PGStorage struct {
 }
 
 func New(connStr string) (*PGStorage, error) {
-	db, err := sql.Open("postgres", connStr)
+	pool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		return nil, err
 	}
+
+	db := stdlib.OpenDBFromPool(pool)
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{
 		MigrationsTable: migrationsTable,
