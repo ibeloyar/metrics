@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/model"
+	"go.uber.org/zap"
 )
 
 type Service interface {
@@ -25,11 +26,13 @@ type Service interface {
 
 type MetricsHandler struct {
 	service Service
+	lg      *zap.SugaredLogger
 }
 
-func NewMetricsHandler(s Service) *MetricsHandler {
+func NewMetricsHandler(s Service, lg *zap.SugaredLogger) *MetricsHandler {
 	return &MetricsHandler{
 		service: s,
+		lg:      lg,
 	}
 }
 
@@ -114,14 +117,16 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		h.lg.Errorf("reading request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
 	err = json.Unmarshal(bodyBytes, &body)
 	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -143,6 +148,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	response, err := json.Marshal(metric)
 	if err != nil {
+		h.lg.Errorf("unmarshal request body error: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -157,14 +163,16 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		h.lg.Errorf("reading request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
 	err = json.Unmarshal(bodyBytes, &body)
 	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -193,6 +201,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
+		h.lg.Errorf("reading request body error: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -200,7 +209,8 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(bodyBytes, &bodyMetrics)
 	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -250,7 +260,8 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 
 	err := t.Execute(w, metrics)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.lg.Errorf("execute template error: %s", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -258,7 +269,8 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Ping()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.lg.Errorf("ping error: %s", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(http.StatusOK)
