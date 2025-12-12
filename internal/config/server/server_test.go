@@ -18,7 +18,7 @@ func TestRead_DefaultAddress(t *testing.T) {
 	// Сбрасываем os.Args - никаких флагов
 	os.Args = []string{"cmd"}
 
-	config := Read()
+	config, _ := Read()
 	if config.Addr != DefaultAddress {
 		t.Errorf("expected default address %q, got %q", DefaultAddress, config.Addr)
 	}
@@ -31,7 +31,7 @@ func TestRead_FlagAddress(t *testing.T) {
 	// Передаем флаг -a
 	os.Args = []string{"cmd", "-a", "flag:7070"}
 
-	config := Read()
+	config, _ := Read()
 	if config.Addr != "flag:7070" {
 		t.Errorf("expected address from flag %q, got %q", "flag:7070", config.Addr)
 	}
@@ -44,7 +44,7 @@ func TestRead_EnvVariable(t *testing.T) {
 
 	os.Args = []string{"cmd"}
 
-	config := Read()
+	config, _ := Read()
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
@@ -58,7 +58,7 @@ func TestRead_EnvOverridesFlag(t *testing.T) {
 	// Передаем флаг -a
 	os.Args = []string{"cmd", "-a", "flag:7070"}
 
-	config := Read()
+	config, _ := Read()
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
