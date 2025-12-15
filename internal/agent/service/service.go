@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +16,8 @@ import (
 )
 
 const (
+	hashHeaderName = "HashSHA256"
+
 	maxSendAttempts     = 3
 	firstRetryDuration  = 1 * time.Second
 	secondRetryDuration = 3 * time.Second
@@ -22,6 +27,7 @@ const (
 type Service struct {
 	client *http.Client
 	addr   string
+	key    string
 }
 
 type SendMetricBody struct {
@@ -31,7 +37,7 @@ type SendMetricBody struct {
 	Value *float64 `json:"value,omitempty"` // metric value if MType gauge
 }
 
-func NewService(addr string) *Service {
+func NewService(addr string, key string) *Service {
 	client := retryablehttp.NewClient()
 	client.RetryMax = maxSendAttempts
 	client.RetryWaitMin = firstRetryDuration
@@ -42,6 +48,7 @@ func NewService(addr string) *Service {
 	return &Service{
 		client: standardClient,
 		addr:   addr,
+		key:    key,
 	}
 }
 
@@ -72,6 +79,9 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
+	if s.key != "" {
+		request.Header.Set(hashHeaderName, getHashBodySHA256(bodyBytes, s.key))
+	}
 
 	response, err := s.client.Do(request)
 	if err != nil {
@@ -93,4 +103,10 @@ func customBackoff(min, max time.Duration, attemptNum int, _ *http.Response) tim
 	default:
 		return max
 	}
+}
+
+func getHashBodySHA256(data []byte, key string) string {
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }

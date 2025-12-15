@@ -69,7 +69,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 
 	s := service.New(storage)
 
-	metricsHandler := handler.NewMetricsHandler(s, lg)
+	metricsHandler := handler.NewMetricsHandler(s, lg, cfg.Key)
 
 	router = handler.InitRoutes(router, metricsHandler)
 

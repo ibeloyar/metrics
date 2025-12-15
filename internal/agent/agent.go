@@ -49,7 +49,7 @@ func Run(config config.Config) error {
 		case <-sendMetricTicker.C:
 			var allMetrics []service.SendMetricBody
 
-			as := service.NewService(config.Addr)
+			as := service.NewService(config.Addr, config.Key)
 			metrics := repo.GetAll()
 			pollCounter := repo.GetPollCounter()
 

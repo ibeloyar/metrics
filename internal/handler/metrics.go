@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"html/template"
 	"io"
@@ -10,6 +13,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/model"
 	"go.uber.org/zap"
+)
+
+const (
+	HashHeaderName = "HashSHA256"
 )
 
 type Service interface {
@@ -27,12 +34,14 @@ type Service interface {
 type MetricsHandler struct {
 	service Service
 	lg      *zap.SugaredLogger
+	key     string
 }
 
-func NewMetricsHandler(s Service, lg *zap.SugaredLogger) *MetricsHandler {
+func NewMetricsHandler(s Service, lg *zap.SugaredLogger, key string) *MetricsHandler {
 	return &MetricsHandler{
 		service: s,
 		lg:      lg,
+		key:     key,
 	}
 }
 
@@ -169,6 +178,11 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	if !h.checkHash(bodyBytes, r.Header.Get(HashHeaderName)) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
 	err = json.Unmarshal(bodyBytes, &body)
 	if err != nil {
 		h.lg.Errorf("unmarshal request body error: %s", err)
@@ -206,6 +220,11 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+
+	if !h.checkHash(bodyBytes, r.Header.Get(HashHeaderName)) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 
 	err = json.Unmarshal(bodyBytes, &bodyMetrics)
 	if err != nil {
@@ -274,4 +293,20 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
+	if h.key != "" {
+		expectedHash := getHashBodySHA256(bodyBytes, h.key)
+
+		return hmac.Equal([]byte(expectedHash), []byte(headerHash))
+	}
+
+	return true
+}
+
+func getHashBodySHA256(data []byte, key string) string {
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }
