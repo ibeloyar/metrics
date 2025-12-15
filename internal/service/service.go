@@ -6,19 +6,22 @@ import (
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
-type MemStorage interface {
+type Storage interface {
+	Ping() error
 	GetMetric(name string) *model.Metrics
 	GetMetrics() map[string]model.Metrics
-
 	SetMetric(metric model.Metrics) error
+	SetMetrics(metrics []model.Metrics) error
 	IncrementCountMetricValue(name string, delta *int64) error
+
+	Shutdown() error
 }
 
 type Service struct {
-	storage MemStorage
+	storage Storage
 }
 
-func New(s MemStorage) *Service {
+func New(s Storage) *Service {
 	return &Service{
 		storage: s,
 	}
@@ -59,6 +62,18 @@ func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 	}
 }
 
+func (s *Service) SetMetrics(metrics []model.Metrics) *model.APIError {
+	err := s.storage.SetMetrics(metrics)
+	if err != nil {
+		return &model.APIError{
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		}
+	}
+
+	return nil
+}
+
 func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {
 	metric := s.storage.GetMetric(name)
 	if metric == nil {
@@ -80,4 +95,13 @@ func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {
 	}
 
 	return result, nil
+}
+
+func (s *Service) Ping() error {
+	err := s.storage.Ping()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -48,7 +48,7 @@ func (s *MemStorage) Init() error {
 		}
 
 		if metrics != nil {
-			s.SetMetrics(metrics)
+			s.SetInitMetrics(metrics)
 		}
 	}
 
@@ -57,6 +57,10 @@ func (s *MemStorage) Init() error {
 	}
 
 	return nil
+}
+
+func (s *MemStorage) SetInitMetrics(metrics map[string]model.Metrics) {
+	s.metrics = metrics
 }
 
 func (s *MemStorage) startSavingMetrics() {
@@ -88,9 +92,6 @@ func (s *MemStorage) Shutdown() error {
 }
 
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	v, ok := s.metrics[name]
 	if !ok {
 		return nil
@@ -99,23 +100,10 @@ func (s *MemStorage) GetMetric(name string) *model.Metrics {
 }
 
 func (s *MemStorage) GetMetrics() map[string]model.Metrics {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	return s.metrics
 }
 
-func (s *MemStorage) SetMetrics(metrics map[string]model.Metrics) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.metrics = metrics
-}
-
 func (s *MemStorage) SetMetric(metric model.Metrics) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	switch metric.MType {
 	case model.Gauge:
 		s.metrics[metric.ID] = model.Metrics{
@@ -135,6 +123,61 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 		}
 	default:
 		return fmt.Errorf("unknown metric type: %s", metric.MType)
+	}
+
+	if s.saveMetricTicker == nil {
+		metrics := s.GetMetrics()
+
+		return s.fileStorage.Save(metrics)
+	}
+
+	return nil
+}
+
+func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case model.Gauge:
+			s.metrics[metric.ID] = model.Metrics{
+				ID:    metric.ID,
+				MType: metric.MType,
+				Value: metric.Value,
+				Delta: nil,
+				Hash:  "",
+			}
+		case model.Counter:
+			oldMetric, ok := s.metrics[metric.ID]
+			if !ok {
+				return s.SetMetric(model.Metrics{
+					ID:    metric.ID,
+					MType: model.Counter,
+					Value: nil,
+					Delta: metric.Delta,
+					Hash:  "",
+				})
+			}
+
+			newDelta := metric.Delta
+
+			if oldMetric.Delta != nil && metric.Delta != nil {
+				v := *newDelta + *oldMetric.Delta
+				newDelta = &v
+			}
+
+			s.metrics[metric.ID] = model.Metrics{
+				ID:    metric.ID,
+				MType: model.Counter,
+				Value: nil,
+				Delta: newDelta,
+				Hash:  "",
+			}
+		default:
+			fmt.Printf("unknown metric type: %s", metric.MType)
+			return fmt.Errorf("unknown metric type: %s", metric.MType)
+		}
 	}
 
 	if s.saveMetricTicker == nil {
@@ -182,5 +225,9 @@ func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error 
 		return s.fileStorage.Save(metrics)
 	}
 
+	return nil
+}
+
+func (s *MemStorage) Ping() error {
 	return nil
 }

@@ -1,6 +1,10 @@
 package service
 
-import "github.com/ibeloyar/metrics/internal/model"
+import (
+	"errors"
+
+	"github.com/ibeloyar/metrics/internal/model"
+)
 
 func (s *Service) IsValidMetricType(metricType string) bool {
 	if metricType == model.Counter || metricType == model.Gauge {
@@ -8,4 +12,30 @@ func (s *Service) IsValidMetricType(metricType string) bool {
 	}
 
 	return false
+}
+
+func (s *Service) ValidateMetric(metric model.Metrics) error {
+	if metric.MType != model.Counter && metric.MType != model.Gauge {
+		return errors.New("invalid metric type")
+	}
+
+	if metric.MType == model.Counter && metric.Delta == nil {
+		return errors.New("delta must be set for counter")
+	}
+
+	if metric.MType == model.Gauge && metric.Value == nil {
+		return errors.New("value must be set for gauge")
+	}
+
+	return nil
+}
+
+func (s *Service) ValidateMetrics(metrics []model.Metrics) error {
+	for _, metric := range metrics {
+		if err := s.ValidateMetric(metric); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

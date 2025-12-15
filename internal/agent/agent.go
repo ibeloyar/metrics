@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"math/rand/v2"
 	"os/signal"
 	"runtime"
 	"syscall"
@@ -12,6 +13,10 @@ import (
 	"github.com/ibeloyar/metrics/internal/agent/service"
 	"github.com/ibeloyar/metrics/internal/logger"
 )
+
+func pointer[T any](v T) *T {
+	return &v
+}
 
 func Run(config config.Config) error {
 	var m runtime.MemStats
@@ -42,22 +47,35 @@ func Run(config config.Config) error {
 
 			repo.IncrementPollCounter()
 		case <-sendMetricTicker.C:
+			var allMetrics []service.SendMetricBody
+
 			as := service.NewService(config.Addr)
 			metrics := repo.GetAll()
 			pollCounter := repo.GetPollCounter()
 
 			for name, value := range metrics {
-				if err := as.SendGaugeMetric(name, value); err != nil {
-					return err
-				}
+				allMetrics = append(allMetrics, service.SendMetricBody{
+					ID:    name,
+					MType: "gauge",
+					Value: pointer(value),
+				})
 			}
 
-			if err := as.SendPollCounter(pollCounter); err != nil {
-				return err
-			}
-			repo.ResetPollCounter()
+			allMetrics = append(allMetrics, service.SendMetricBody{
+				ID:    "PollCount",
+				MType: "counter",
+				Delta: pointer(pollCounter),
+			})
 
-			if err := as.SendRandomValue(); err != nil {
+			randomValue := rand.Float64()
+			allMetrics = append(allMetrics, service.SendMetricBody{
+				ID:    "RandomValue",
+				MType: "gauge",
+				Value: pointer(randomValue),
+			})
+
+			if err := as.SendMetrics(allMetrics); err != nil {
+				lg.Error("Error sending metrics: ", err)
 				return err
 			}
 

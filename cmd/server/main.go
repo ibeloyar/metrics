@@ -1,13 +1,20 @@
 package main
 
 import (
+	"log"
+
 	"github.com/ibeloyar/metrics/internal/app/server"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
 func main() {
-	cfg := config.Read()
+	cfg, err := config.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	server.Run(cfg)
+	if err := server.Run(cfg); err != nil {
+		log.Fatal(err)
+	}
 }

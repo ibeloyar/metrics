@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,51 +17,61 @@ import (
 	"github.com/ibeloyar/metrics/internal/middleware/gzip"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
+	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
+	"github.com/ibeloyar/metrics/internal/service"
 	"go.uber.org/zap"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
-func Run(cfg config.Config) {
-	lg, repo, err := initDependencies(cfg)
+func Run(cfg config.Config) error {
+	var storage service.Storage
+
+	lg, err := logger.New()
 	if err != nil {
-		log.Fatalf("Failed to initialize dependencies: %v", err)
+		return err
 	}
 	defer lg.Sync()
 
-	srv := buildServer(cfg, repo, lg)
-
-	run(srv, repo, lg, cfg.Addr)
-}
-
-func initDependencies(cfg config.Config) (*zap.SugaredLogger, *memstorage.MemStorage, error) {
-	lg, err := logger.New()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	fileStorage := filestorage.New(cfg.FileStoragePath)
-	repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
-
-	if err := repo.Init(); err != nil {
-		shutdownErr := repo.Shutdown()
-		if shutdownErr != nil {
-			lg.Fatalf("Shutdown (repo) error after Init failure: %v", shutdownErr)
+	if cfg.DatabaseDSN != "" {
+		pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
+		if err != nil {
+			return err
 		}
-		return nil, nil, err
+
+		storage = pgStorage
+	} else {
+		fileStorage := filestorage.New(cfg.FileStoragePath)
+		repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
+
+		if err := repo.Init(); err != nil {
+			shutdownErr := repo.Shutdown()
+			if shutdownErr != nil {
+				return shutdownErr
+			}
+			return err
+		}
+
+		storage = repo
 	}
 
-	return lg, repo, nil
+	srv := buildServer(cfg, storage, lg)
+
+	return runServer(srv, storage, lg, cfg.Addr)
 }
 
-func buildServer(cfg config.Config, repo *memstorage.MemStorage, lg *zap.SugaredLogger) *http.Server {
+func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger) *http.Server {
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
-	router = handler.InitRoutes(router, repo)
+	s := service.New(storage)
+
+	metricsHandler := handler.NewMetricsHandler(s, lg)
+
+	router = handler.InitRoutes(router, metricsHandler)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,
@@ -71,31 +81,32 @@ func buildServer(cfg config.Config, repo *memstorage.MemStorage, lg *zap.Sugared
 	return srv
 }
 
-func run(srv *http.Server, repo *memstorage.MemStorage, lg *zap.SugaredLogger, addr string) {
+func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) error {
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	lg.Infof("Starting server on %s", addr)
+	lg.Infof("starting server on %s", addr)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			lg.Fatalf("Server ListenAndServe error: %v", err)
+			lg.Fatalf("server ListenAndServe error: %v", err)
 		}
 	}()
 
 	<-signalCtx.Done()
-	lg.Info("Shutting down server...")
+	lg.Info("shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		lg.Fatalf("Shutdown (server) error: %v", err)
+		return fmt.Errorf("shutdown (server) error: %v", err)
 	}
 
-	if err := repo.Shutdown(); err != nil {
-		lg.Fatalf("Shutdown (repo) error: %v", err)
+	if err := storage.Shutdown(); err != nil {
+		return fmt.Errorf("shutdown (repo) error: %v", err)
 	}
 
-	lg.Info("Server shutdown success")
+	lg.Info("server shutdown success")
+	return nil
 }

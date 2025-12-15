@@ -9,28 +9,34 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ibeloyar/metrics/internal/model"
+	"go.uber.org/zap"
 )
 
 type Service interface {
+	Ping() error
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
-
 	SetMetric(metric model.Metrics) *model.APIError
+	SetMetrics(metrics []model.Metrics) *model.APIError
 
 	IsValidMetricType(metricType string) bool
+	ValidateMetric(metric model.Metrics) error
+	ValidateMetrics(metrics []model.Metrics) error
 }
 
-type Handlers struct {
+type MetricsHandler struct {
 	service Service
+	lg      *zap.SugaredLogger
 }
 
-func InitHandlers(s Service) *Handlers {
-	return &Handlers{
+func NewMetricsHandler(s Service, lg *zap.SugaredLogger) *MetricsHandler {
+	return &MetricsHandler{
 		service: s,
+		lg:      lg,
 	}
 }
 
-func (h *Handlers) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	n := chi.URLParam(r, "name")
 	t := chi.URLParam(r, "type")
 
@@ -57,7 +63,7 @@ func (h *Handlers) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	n := chi.URLParam(r, "name")
 	v := chi.URLParam(r, "value")
@@ -68,7 +74,7 @@ func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t == model.Counter {
-		value, err := strconv.ParseInt(v, 10, 64)
+		delta, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -77,7 +83,7 @@ func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 		apiErr := h.service.SetMetric(model.Metrics{
 			ID:    n,
 			MType: model.Counter,
-			Delta: &value,
+			Delta: &delta,
 		})
 		if apiErr != nil {
 			http.Error(w, apiErr.Message, apiErr.Code)
@@ -106,19 +112,21 @@ func (h *Handlers) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.GetMetricBody
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		h.lg.Errorf("reading request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
 	err = json.Unmarshal(bodyBytes, &body)
 	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -140,6 +148,7 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	response, err := json.Marshal(metric)
 	if err != nil {
+		h.lg.Errorf("unmarshal request body error: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -149,24 +158,32 @@ func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.Metrics
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "reading request body error", http.StatusInternalServerError)
+		h.lg.Errorf("reading request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
 	err = json.Unmarshal(bodyBytes, &body)
 	if err != nil {
-		http.Error(w, "unmarshal request body error", http.StatusInternalServerError)
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if !h.service.IsValidMetricType(body.MType) {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.ValidateMetric(body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -179,7 +196,40 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+	var bodyMetrics []model.Metrics
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.lg.Errorf("reading request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	err = json.Unmarshal(bodyBytes, &bodyMetrics)
+	if err != nil {
+		h.lg.Errorf("unmarshal request body error: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	err = h.service.ValidateMetrics(bodyMetrics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	apiErr := h.service.SetMetrics(bodyMetrics)
+	if apiErr != nil {
+		http.Error(w, apiErr.Message, apiErr.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 	metricsPageTemplate := `
 	<h1>Metrics</h1>
 	<table border="1">
@@ -210,7 +260,18 @@ func (h *Handlers) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
 
 	err := t.Execute(w, metrics)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.lg.Errorf("execute template error: %s", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
+	err := h.service.Ping()
+	if err != nil {
+		h.lg.Errorf("ping error: %s", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
