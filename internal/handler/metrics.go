@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	HashHeaderName = "HashSHA256"
+	hashHeaderName = "HashSHA256"
 )
 
 type Service interface {
@@ -163,6 +163,9 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	if h.key != "" {
+		w.Header().Set(hashHeaderName, getHashBodySHA256(bodyBytes, h.key))
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
 }
@@ -178,7 +181,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if !h.checkHash(bodyBytes, r.Header.Get(HashHeaderName)) {
+	if !h.checkHash(bodyBytes, r.Header.Get(hashHeaderName)) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -221,7 +224,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if !h.checkHash(bodyBytes, r.Header.Get(HashHeaderName)) {
+	if !h.checkHash(bodyBytes, r.Header.Get(hashHeaderName)) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -275,6 +278,9 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
 
 	w.Header().Set("Content-Type", "text/html")
+	if h.key != "" {
+		w.Header().Set(hashHeaderName, getHashBodySHA256([]byte(metricsPageTemplate), h.key))
+	}
 	w.WriteHeader(http.StatusOK)
 
 	err := t.Execute(w, metrics)
