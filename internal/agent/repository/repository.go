@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
+
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 type Repository struct {
@@ -95,4 +98,12 @@ func (r *Repository) ResetPollCounter() {
 	defer r.mu.Unlock()
 
 	r.pollCounter = 0
+}
+
+func (r *Repository) SetGopsutilMetrics(memMetrics *mem.VirtualMemoryStat, cpuPercents []float64) {
+	r.set("TotalMemory", float64(memMetrics.Total))
+	r.set("FreeMemory", float64(memMetrics.Free))
+	for i, percent := range cpuPercents {
+		r.set(fmt.Sprintf("CPU%d", i), percent/100.0)
+	}
 }

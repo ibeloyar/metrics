@@ -244,6 +244,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
 	apiErr := h.service.SetMetrics(bodyMetrics)
 	if apiErr != nil {
+		h.lg.Errorf("SetMetrics: %s", apiErr.Message)
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return
 	}
@@ -302,6 +303,10 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
+	if headerHash == "" {
+		return true
+	}
+
 	if h.key != "" {
 		expectedHash := getHashBodySHA256(bodyBytes, h.key)
 
