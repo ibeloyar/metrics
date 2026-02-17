@@ -1,8 +1,11 @@
 package service
 
 import (
+	"net"
 	"net/http"
+	"time"
 
+	"github.com/ibeloyar/metrics/internal/audit"
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
@@ -18,12 +21,14 @@ type Storage interface {
 }
 
 type Service struct {
-	storage Storage
+	storage      Storage
+	auditSubject *audit.AuditSubject
 }
 
-func New(s Storage) *Service {
+func New(s Storage, a *audit.AuditSubject) *Service {
 	return &Service{
-		storage: s,
+		storage:      s,
+		auditSubject: a,
 	}
 }
 
@@ -62,7 +67,7 @@ func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 	}
 }
 
-func (s *Service) SetMetrics(metrics []model.Metrics) *model.APIError {
+func (s *Service) SetMetrics(metrics []model.Metrics, remoteAddr string) *model.APIError {
 	err := s.storage.SetMetrics(metrics)
 	if err != nil {
 		return &model.APIError{
@@ -70,6 +75,13 @@ func (s *Service) SetMetrics(metrics []model.Metrics) *model.APIError {
 			Message: http.StatusText(http.StatusInternalServerError),
 		}
 	}
+
+	event := audit.AuditEvent{
+		TS:        time.Now().Unix(),
+		Metrics:   metricNames(metrics),
+		IPAddress: parseIP(remoteAddr),
+	}
+	s.auditSubject.NotifyAll(event)
 
 	return nil
 }
@@ -104,4 +116,19 @@ func (s *Service) Ping() error {
 	}
 
 	return nil
+}
+
+func metricNames(metrics []model.Metrics) []string {
+	names := make([]string, 0, len(metrics))
+	for _, m := range metrics {
+		names = append(names, m.ID) // или m.Name в зависимости от модели
+	}
+	return names
+}
+
+func parseIP(remoteAddr string) string {
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return host
+	}
+	return remoteAddr // fallback для IPv6 [::1]
 }

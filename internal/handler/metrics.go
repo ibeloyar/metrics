@@ -24,7 +24,7 @@ type Service interface {
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
 	SetMetric(metric model.Metrics) *model.APIError
-	SetMetrics(metrics []model.Metrics) *model.APIError
+	SetMetrics(metrics []model.Metrics, remoteAddr string) *model.APIError
 
 	IsValidMetricType(metricType string) bool
 	ValidateMetric(metric model.Metrics) error
@@ -242,7 +242,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiErr := h.service.SetMetrics(bodyMetrics)
+	apiErr := h.service.SetMetrics(bodyMetrics, r.RemoteAddr)
 	if apiErr != nil {
 		h.lg.Errorf("SetMetrics: %s", apiErr.Message)
 		http.Error(w, apiErr.Message, apiErr.Code)

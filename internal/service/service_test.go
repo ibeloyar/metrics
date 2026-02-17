@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/ibeloyar/metrics/internal/audit"
 	config "github.com/ibeloyar/metrics/internal/config/server"
 	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
@@ -17,8 +18,9 @@ func TestService(t *testing.T) {
 	}
 
 	fileStorage := filestorage.New(cfg.FileStoragePath)
+	auditSubject := audit.NewSubject()
 	repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
-	srv := New(repo)
+	srv := New(repo, auditSubject)
 
 	t.Run("IsValidMetricType", func(t *testing.T) {
 		if !srv.IsValidMetricType(model.Gauge) {

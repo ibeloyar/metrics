@@ -13,6 +13,8 @@ const (
 	DefaultRestore         = false
 	DefaultDatabaseDSN     = ""
 	DefaultKey             = ""
+	DefaultAuditFile       = ""
+	DefaultAuditURL        = ""
 )
 
 type Config struct {
@@ -22,6 +24,8 @@ type Config struct {
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	Key             string `env:"KEY"`
+	AuditFile       string `env:"AUDIT_FILE"`
+	AuditURL        string `env:"AUDIT_URL"`
 }
 
 func Read() (Config, error) {
@@ -33,6 +37,9 @@ func Read() (Config, error) {
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
 	flag.StringVar(&config.DatabaseDSN, "d", DefaultDatabaseDSN, "Database connect string")
 	flag.StringVar(&config.Key, "k", DefaultKey, "Key for hash")
+
+	flag.StringVar(&config.AuditFile, "audit-file", DefaultAuditFile, "Path to audit log file")
+	flag.StringVar(&config.AuditURL, "audit-url", DefaultAuditURL, "URL to send audit logs")
 
 	flag.Parse()
 
