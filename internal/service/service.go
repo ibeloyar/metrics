@@ -121,7 +121,7 @@ func (s *Service) Ping() error {
 func metricNames(metrics []model.Metrics) []string {
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
-		names = append(names, m.ID) // или m.Name в зависимости от модели
+		names = append(names, m.ID)
 	}
 	return names
 }
@@ -130,5 +130,5 @@ func parseIP(remoteAddr string) string {
 	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
 		return host
 	}
-	return remoteAddr // fallback для IPv6 [::1]
+	return remoteAddr
 }
