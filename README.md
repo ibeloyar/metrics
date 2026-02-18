@@ -1,52 +1,64 @@
 # go-musthave-metrics-tpl
 
-Шаблон репозитория для трека «Сервер сбора метрик и алертинга».
+Metrics and alerting collection service
 
-## Начало работы
-
-1. Склонируйте репозиторий в любую подходящую директорию на вашем компьютере.
-2. В корне репозитория выполните команду `go mod init <name>` (где `<name>` — адрес вашего репозитория на GitHub без префикса `https://`) для создания модуля.
-
-## Обновление шаблона
-
-Чтобы иметь возможность получать обновления автотестов и других частей шаблона, выполните команду:
-
+### Last pprof diff
 ```
-git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
+File: ___2go_run_LOCAL
+Build ID: cb99a7f2106c24b99d7503bb5697bb1d9531a4b7
+Type: inuse_space
+Time: 2026-02-18 09:48:57 MSK
+Showing nodes accounting for -3589.28kB, 58.33% of 6153.32kB total
+Dropped 2 nodes (cum <= 30.77kB)
+      flat  flat%   sum%        cum   cum%
+   -1539kB 25.01% 25.01%    -1539kB 25.01%  runtime.allocm
+    -514kB  8.35% 33.36%     -514kB  8.35%  bufio.NewReaderSize (inline)
+ -512.17kB  8.32% 41.69%  -512.17kB  8.32%  net/textproto.MIMEHeader.Set (inline)
+ -512.12kB  8.32% 50.01%  -512.12kB  8.32%  github.com/go-chi/chi/v5.NewRouteContext
+  512.05kB  8.32% 41.69%   512.05kB  8.32%  sync.runtime_notifyListWait
+ -512.02kB  8.32% 50.01%  -512.02kB  8.32%  text/template/parse.(*Tree).newCommand (inline)
+ -512.01kB  8.32% 58.33%  -512.01kB  8.32%  text/template/parse.(*Tree).newText (inline)
+         0     0% 58.33%     -514kB  8.35%  bufio.NewReader (inline)
+         0     0% 58.33% -2048.32kB 33.29%  github.com/go-chi/chi/v5.(*Mux).ServeHTTP
+         0     0% 58.33% -1536.20kB 24.97%  github.com/go-chi/chi/v5.(*Mux).routeHTTP
+         0     0% 58.33% -1536.20kB 24.97%  github.com/go-chi/chi/v5/middleware.Recoverer.func1
+         0     0% 58.33% -1536.20kB 24.97%  github.com/ibeloyar/metrics/internal/app/server.buildServer.LoggingMiddleware.func1.1
+         0     0% 58.33%  -512.12kB  8.32%  github.com/ibeloyar/metrics/internal/app/server.buildServer.NewRouter.NewMux.func2
+         0     0% 58.33% -1536.20kB 24.97%  github.com/ibeloyar/metrics/internal/handler.(*MetricsHandler).GetMetricsPage
+         0     0% 58.33% -1536.20kB 24.97%  github.com/ibeloyar/metrics/internal/middleware/gzip.Middleware.func1
+         0     0% 58.33% -1024.03kB 16.64%  html/template.(*Template).Parse
+         0     0% 58.33%     -513kB  8.34%  net/http.(*conn).readRequest
+         0     0% 58.33% -2049.27kB 33.30%  net/http.(*conn).serve
+         0     0% 58.33%   512.05kB  8.32%  net/http.(*connReader).abortPendingRead
+         0     0% 58.33%   512.05kB  8.32%  net/http.(*response).finishRequest
+         0     0% 58.33% -1536.20kB 24.97%  net/http.HandlerFunc.ServeHTTP
+         0     0% 58.33%  -512.17kB  8.32%  net/http.Header.Set (inline)
+         0     0% 58.33%     -514kB  8.35%  net/http.newBufioReader
+         0     0% 58.33% -2048.32kB 33.29%  net/http.serverHandler.ServeHTTP
+         0     0% 58.33%     -513kB  8.34%  runtime.findRunnable
+         0     0% 58.33%     -513kB  8.34%  runtime.injectglist
+         0     0% 58.33%     -513kB  8.34%  runtime.injectglist.func1
+         0     0% 58.33%     -513kB  8.34%  runtime.mcall
+         0     0% 58.33%    -1026kB 16.67%  runtime.mstart
+         0     0% 58.33%    -1026kB 16.67%  runtime.mstart0
+         0     0% 58.33%    -1026kB 16.67%  runtime.mstart1
+         0     0% 58.33%    -1539kB 25.01%  runtime.newm
+         0     0% 58.33%     -513kB  8.34%  runtime.park_m
+         0     0% 58.33%    -1026kB 16.67%  runtime.resetspinning
+         0     0% 58.33%    -1539kB 25.01%  runtime.schedule
+         0     0% 58.33%    -1539kB 25.01%  runtime.startm
+         0     0% 58.33%    -1026kB 16.67%  runtime.wakep
+         0     0% 58.33%   512.05kB  8.32%  sync.(*Cond).Wait
+         0     0% 58.33%  -512.12kB  8.32%  sync.(*Pool).Get
+         0     0% 58.33% -1024.03kB 16.64%  text/template.(*Template).Parse
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).Parse
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).action
+         0     0% 58.33%  -512.02kB  8.32%  text/template/parse.(*Tree).command
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).itemList
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).parse
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).parseControl
+         0     0% 58.33%  -512.02kB  8.32%  text/template/parse.(*Tree).pipeline
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).rangeControl
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).textOrAction
+         0     0% 58.33% -1024.03kB 16.64%  text/template/parse.Parse
 ```
-
-Для обновления кода автотестов выполните команду:
-
-```
-git fetch template && git checkout template/main .github
-```
-
-Затем добавьте полученные изменения в свой репозиторий.
-
-## Запуск автотестов
-
-Для успешного запуска автотестов называйте ветки `iter<number>`, где `<number>` — порядковый номер инкремента. Например, в ветке с названием `iter4` запустятся автотесты для инкрементов с первого по четвёртый.
-
-При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
-
-Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
-
-## Структура проекта
-
-Приведённая в этом репозитории структура проекта является рекомендуемой, но не обязательной.
-
-Это лишь пример организации кода, который поможет вам в реализации сервиса.
-
-При необходимости можно вносить изменения в структуру проекта, использовать любые библиотеки и предпочитаемые структурные паттерны организации кода приложения, например:
-- **DDD** (Domain-Driven Design)
-- **Clean Architecture**
-- **Hexagonal Architecture**
-- **Layered Architecture**
-
-
-Трек «Сервис сбора метрик и алертинга»
-  
-1. Скомпилируйте ваши сервер и агент в папках cmd/server и cmd/agent командами go build -o server *.go и go build -o agent *.go соответственно.
-2. Скачайте бинарный файл с автотестами для вашей ОС — например, metricstest-darwin-arm64 для MacOS на процессоре Apple Silicon.
-3. Разместите бинарный файл так, чтобы он был доступен для запуска из командной строки, — пропишите путь в переменную $PATH.
-4. Ознакомьтесь с параметрами запуска автотестов в файле .github/workflows/metricstest.yml вашего репозитория. Автотесты для разных инкрементов требуют различных аргументов для запуска.

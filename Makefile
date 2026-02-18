@@ -45,8 +45,7 @@ ifdef ITER
 	-source-path=. \
 	-server-port=8080 \
 	-database-dsn="host=$(DB_HOST) user=$(DB_USER) password=$(DB_PASS) dbname=$(DB_NAME) sslmode=disable" \
-	-file-storage-path=data/metrics.json \
-	-key=test
+	-file-storage-path=data/metrics.json
 else
 	@echo "Require variable ITER not found"
 endif
@@ -80,6 +79,30 @@ endif
 install-tools:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest # golang-migrate CLI
 
+.PHONY: profile-base
+profile-base:
+	@mkdir -p ./profiles
+	@wrk -t4 -c100 -d30s http://localhost:8080 > /dev/null 2>&1 &
+	@echo "Wait... 10s"
+	@sleep 10
+	@curl http://localhost:8080/debug/pprof/heap > profiles/base.pprof
+
+.PHONY: profile-result
+profile-result:
+	@mkdir -p ./profiles
+	@wrk -t4 -c100 -d30s http://localhost:8080 > /dev/null 2>&1 &
+	@echo "Wait... 10s"
+	@sleep 10
+	@curl http://localhost:8080/debug/pprof/heap > profiles/result.pprof
+
+.PHONY: profile-diff
+profile-diff:
+	@go tool pprof -top -diff_base=profiles/base.pprof profiles/result.pprof
+
+.PHONY: gofmt
+gofmt:
+	@gofmt -w ./..
+
 .PHONY: help
 help:
 	@echo "command           | description"
@@ -94,3 +117,7 @@ help:
 	@echo "migrate-down      | run DOWN migrations"
 	@echo "migrate-create    | run create migration with NAME; EXAMPLE: make NAME=add_users migrate-create"
 	@echo "install-tools     | install libs for work with project"
+	@echo "profile-base      | base pprof heap check"
+	@echo "profile-result    | result pprof heap check"
+	@echo "profile-diff      | show pprof result difference"
+	@echo "gofmt             | format code"

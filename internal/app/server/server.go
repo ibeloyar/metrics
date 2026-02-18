@@ -77,7 +77,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 
 	metricsHandler := handler.NewMetricsHandler(s, lg, cfg.Key)
 
-	router = handler.InitRoutes(router, metricsHandler)
+	router = handler.InitRoutes(router, metricsHandler, cfg.Pprof)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,

@@ -19,6 +19,23 @@ const (
 	hashHeaderName = "HashSHA256"
 )
 
+var metricsPageTemplate = `
+	<h1>Metrics</h1>
+	<table border="1">
+		<thead>
+			<tr><th>Key</th><th>Value</th></tr>
+		</thead>
+		<tbody>
+			{{range .}}
+			<tr>
+			   <td>{{.ID}}</td>
+			   <td>{{if eq .MType "gauge"}}{{.Value}}{{else if eq .MType "counter"}}{{.Delta}}{{end}}</td>
+			</tr>
+		   {{end}}
+		</tbody>
+	</table>
+	`
+
 type Service interface {
 	Ping() error
 	GetMetric(name string) (*model.Metrics, *model.APIError)
@@ -35,13 +52,18 @@ type MetricsHandler struct {
 	service Service
 	lg      *zap.SugaredLogger
 	key     string
+
+	metricsPageTemplate *template.Template
 }
 
 func NewMetricsHandler(s Service, lg *zap.SugaredLogger, key string) *MetricsHandler {
+	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
+
 	return &MetricsHandler{
-		service: s,
-		lg:      lg,
-		key:     key,
+		service:             s,
+		lg:                  lg,
+		key:                 key,
+		metricsPageTemplate: t,
 	}
 }
 
@@ -253,30 +275,11 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
-	metricsPageTemplate := `
-	<h1>Metrics</h1>
-	<table border="1">
-		<thead>
-			<tr><th>Key</th><th>Value</th></tr>
-		</thead>
-		<tbody>
-			{{range .}}
-			<tr>
-			   <td>{{.ID}}</td>
-			   <td>{{if eq .MType "gauge"}}{{.Value}}{{else if eq .MType "counter"}}{{.Delta}}{{end}}</td>
-			</tr>
-		   {{end}}
-		</tbody>
-	</table>
-	`
-
 	metrics, apiErr := h.service.GetMetrics()
 	if apiErr != nil {
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return
 	}
-
-	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
 
 	w.Header().Set("Content-Type", "text/html")
 	if h.key != "" {
@@ -284,7 +287,7 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusOK)
 
-	err := t.Execute(w, metrics)
+	err := h.metricsPageTemplate.Execute(w, metrics)
 	if err != nil {
 		h.lg.Errorf("execute template error: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

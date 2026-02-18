@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -16,7 +17,7 @@ type MetricHandlers interface {
 	Ping(w http.ResponseWriter, r *http.Request)
 }
 
-func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers) *chi.Mux {
+func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers, pprofFlag bool) *chi.Mux {
 
 	r.Get("/", metricHandlers.GetMetricsPage)
 	r.Get("/ping", metricHandlers.Ping)
@@ -27,6 +28,11 @@ func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers) *chi.Mux {
 	r.Post("/update/", metricHandlers.UpdateMetric)
 	r.Post("/updates/", metricHandlers.UpdateMetrics)
 	r.Post("/update/{type}/{name}/{value}", metricHandlers.UpdateMetricQuery)
+
+	if pprofFlag {
+		r.Mount("/debug/pprof", http.HandlerFunc(pprof.Index))
+		r.Handle("/debug/pprof/*", http.DefaultServeMux)
+	}
 
 	return r
 }

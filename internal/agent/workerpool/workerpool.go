@@ -41,7 +41,7 @@ func (wp *WorkerPool) Dispatch(metrics []service.SendMetricBody) {
 
 func (wp *WorkerPool) worker() {
 	defer wp.wg.Done()
-	
+
 	for metrics := range wp.jobs {
 		if err := wp.service.SendMetrics(metrics); err != nil {
 			wp.lg.Error("worker failed to send metrics: ", err)
