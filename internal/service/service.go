@@ -9,6 +9,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
+// Storage defines storage interface for metrics operations.
 type Storage interface {
 	Ping() error
 	GetMetric(name string) *model.Metrics
@@ -20,11 +21,13 @@ type Storage interface {
 	Shutdown() error
 }
 
+// Service encapsulates business logic with validation and auditing.
 type Service struct {
 	storage      Storage
 	auditSubject *audit.AuditSubject
 }
 
+// New creates Service instance with storage and audit subject.
 func New(s Storage, a *audit.AuditSubject) *Service {
 	return &Service{
 		storage:      s,
@@ -32,6 +35,11 @@ func New(s Storage, a *audit.AuditSubject) *Service {
 	}
 }
 
+// SetMetric validates and stores single metric.
+//
+// Gauge: uses storage.SetMetric
+// Counter: uses storage.IncrementCountMetricValue (accumulation)
+// Returns APIError with HTTP status codes.
 func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 	if !s.IsValidMetricType(metric.MType) {
 		return &model.APIError{
@@ -67,6 +75,10 @@ func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
 	}
 }
 
+// SetMetrics validates and stores multiple metrics atomically.
+//
+// Logs audit event with metric names and client IP after successful save.
+// Returns APIError on storage failure.
 func (s *Service) SetMetrics(metrics []model.Metrics, remoteAddr string) *model.APIError {
 	err := s.storage.SetMetrics(metrics)
 	if err != nil {
@@ -86,6 +98,7 @@ func (s *Service) SetMetrics(metrics []model.Metrics, remoteAddr string) *model.
 	return nil
 }
 
+// GetMetric retrieves single metric or 404 APIError if not found.
 func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {
 	metric := s.storage.GetMetric(name)
 	if metric == nil {
@@ -98,6 +111,7 @@ func (s *Service) GetMetric(name string) (*model.Metrics, *model.APIError) {
 	return metric, nil
 }
 
+// GetMetrics returns all metrics as slice.
 func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {
 	result := make([]model.Metrics, 0)
 	metrics := s.storage.GetMetrics()
@@ -109,6 +123,7 @@ func (s *Service) GetMetrics() ([]model.Metrics, *model.APIError) {
 	return result, nil
 }
 
+// Ping proxies storage connectivity check.
 func (s *Service) Ping() error {
 	err := s.storage.Ping()
 	if err != nil {

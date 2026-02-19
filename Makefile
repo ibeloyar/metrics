@@ -103,9 +103,29 @@ profile-diff:
 gofmt:
 	@gofmt -w ./..
 
-.PHONY: doc-pgstorage
-doc-pgstorage:
-	@go doc  -all internal/repository/pgstorage
+.PHONY: docs
+docs:
+ifndef PKG
+	@echo "Usage: make docs PKG=<service|pgstorage|memstorage|filestorage|handlers>"
+	@exit 1
+endif
+
+ifeq ($(PKG),service)
+	@go doc -all ./internal/service
+else ifeq ($(PKG),pgstorage)
+	@go doc -all ./internal/repository/pgstorage
+else ifeq ($(PKG),memstorage)
+	@go doc -all ./internal/repository/memstorage
+else ifeq ($(PKG),filestorage)
+	@go doc -all ./internal/repository/filestorage
+else ifeq ($(PKG),handler)
+	@go doc -all ./internal/handler
+else
+	@echo "Unknown PKG: $(PKG)"
+	@echo "Available: service | pgstorage | memstorage | filestorage | handler"
+	@exit 1
+endif
+
 
 .PHONY: help
 help:
@@ -125,3 +145,4 @@ help:
 	@echo "profile-result    | result pprof heap check"
 	@echo "profile-diff      | show pprof result difference"
 	@echo "gofmt             | format code"
+	@echo "docs              | show Go docs; EXAMPLE: make docs PKG=pgstorage|memstorage|handlers|service|handler"

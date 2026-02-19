@@ -17,6 +17,19 @@ type MetricHandlers interface {
 	Ping(w http.ResponseWriter, r *http.Request)
 }
 
+// InitRoutes configures Chi router with metrics API endpoints and optional pprof.
+//
+// Standard Metrics API endpoints:
+//
+//	GET      /                             - HTML metrics table
+//	GET      /ping                         - health check
+//	GET      /value/{type}/{name}          - get metric (query params)
+//	POST     /value/                       - get metric (JSON)
+//	POST     /update/                      - update metric (JSON + HMAC)
+//	POST     /updates/                     - batch update (JSON + HMAC)
+//	POST     /update/{type}/{name}/{value} - update metric (query params)
+//
+// Optional: /debug/pprof/* when pprofFlag=true
 func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers, pprofFlag bool) *chi.Mux {
 
 	r.Get("/", metricHandlers.GetMetricsPage)
