@@ -23,6 +23,10 @@ run-agent:
 run-server:
 	$(GO) run cmd/server/main.go
 
+.PHONY: mock
+mock:
+	@echo "Generating mock for Service..."
+	mockgen -destination=internal/service/mocks/service_mock.go -package=service -source=internal/handler/metrics.go Service
 
 .PHONY: test
 test:
@@ -78,6 +82,7 @@ endif
 .PHONY: install-tools
 install-tools:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest # golang-migrate CLI
+	go install github.com/golang/mock/mockgen@latest  # mocks for tests
 
 .PHONY: profile-base
 profile-base:
@@ -125,7 +130,6 @@ else
 	@echo "Available: service | pgstorage | memstorage | filestorage | handler"
 	@exit 1
 endif
-
 
 .PHONY: help
 help:
