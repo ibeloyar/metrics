@@ -23,11 +23,23 @@ const (
 	maxAttempts = 3
 )
 
+// PGStorage represents PostgreSQL storage for metrics with retry logic.
 type PGStorage struct {
 	db         *sql.DB
 	classifier *PostgresErrorClassifier
 }
 
+// New creates new PGStorage instance with automatic schema migrations.
+//
+// Automatically runs migrations from ./migrations directory.
+// Connection pool is created with pgxpool under the hood.
+//
+// connStr should be a valid PostgreSQL connection string.
+//
+// Returns error if:
+//   - cannot connect to database
+//   - migration fails (except migrate.ErrNoChange)
+//   - absolute path resolution fails
 func New(connStr string) (*PGStorage, error) {
 	pool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
@@ -64,10 +76,17 @@ func New(connStr string) (*PGStorage, error) {
 	}, nil
 }
 
+// Ping checks database connectivity.
+//
+// Returns nil if connection is healthy, otherwise returns the error.
 func (s *PGStorage) Ping() error {
 	return s.db.Ping()
 }
 
+// GetMetric retrieves single metric by ID.
+//
+// Returns nil if metric doesn't exist (sql.ErrNoRows).
+// Other errors are silently converted to nil (after retry attempts).
 func (s *PGStorage) GetMetric(name string) *model.Metrics {
 	var m model.Metrics
 	query := `SELECT id, mtype, delta, value, hash FROM metrics WHERE id = $1`
@@ -86,6 +105,9 @@ func (s *PGStorage) GetMetric(name string) *model.Metrics {
 	return &m
 }
 
+// GetMetrics returns all metrics as ID -> Metrics map.
+//
+// Returns empty map on any error (after retry attempts).
 func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 	result := make(map[string]model.Metrics)
 
@@ -113,6 +135,10 @@ func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 	return result
 }
 
+// SetMetric stores or updates single metric.
+//
+// Uses UPSERT (INSERT ... ON CONFLICT DO UPDATE) semantics.
+// All fields are overwritten on conflict.
 func (s *PGStorage) SetMetric(metric model.Metrics) error {
 	// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
 	query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
@@ -133,6 +159,13 @@ func (s *PGStorage) SetMetric(metric model.Metrics) error {
 
 }
 
+// SetMetrics stores or updates multiple metrics atomically.
+//
+// Uses transaction with 6s timeout. Counter metrics accumulate delta values:
+//
+//	delta = COALESCE(existing.delta, 0) + new.delta
+//
+// Gauge metrics overwrite all fields. Returns error if transaction fails.
 func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
@@ -165,6 +198,13 @@ func (s *PGStorage) SetMetrics(metrics []model.Metrics) error {
 	})
 }
 
+// IncrementCountMetricValue increments counter metric delta.
+//
+// Only works with 'counter' type metrics. Accumulates delta:
+//
+//	new_delta = COALESCE(existing.delta, 0) + delta
+//
+// Panics if delta is nil. Only updates counters (ignores other types).
 func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	if delta == nil {
 		return errors.New("cannot increment metric value, delta is nil")
@@ -181,6 +221,9 @@ func (s *PGStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	})
 }
 
+// Shutdown closes database connection gracefully.
+//
+// Should be called before application exit.
 func (s *PGStorage) Shutdown() error {
 	return s.db.Close()
 }

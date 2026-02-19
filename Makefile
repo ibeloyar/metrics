@@ -103,6 +103,10 @@ profile-diff:
 gofmt:
 	@gofmt -w ./..
 
+.PHONY: doc-pgstorage
+doc-pgstorage:
+	@go doc  -all internal/repository/pgstorage
+
 .PHONY: help
 help:
 	@echo "command           | description"
