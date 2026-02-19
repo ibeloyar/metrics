@@ -62,6 +62,3 @@ Dropped 2 nodes (cum <= 30.77kB)
          0     0% 58.33% -1024.03kB 16.64%  text/template/parse.(*Tree).textOrAction
          0     0% 58.33% -1024.03kB 16.64%  text/template/parse.Parse
 ```
-
-Добавьте примеры работы с эндпоинтами практического трека в формате example_test.go.
-Тесты 40%

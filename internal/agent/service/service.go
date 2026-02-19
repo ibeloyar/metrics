@@ -42,7 +42,7 @@ func NewService(addr string, key string) *Service {
 	client.RetryMax = maxSendAttempts
 	client.RetryWaitMin = firstRetryDuration
 	client.RetryWaitMax = lastRetryDuration
-	client.Backoff = customBackoff
+	client.Backoff = CustomBackoff
 	standardClient := client.StandardClient()
 
 	return &Service{
@@ -80,7 +80,7 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	if s.key != "" {
-		request.Header.Set(hashHeaderName, getHashBodySHA256(bodyBytes, s.key))
+		request.Header.Set(hashHeaderName, GetHashBodySHA256(bodyBytes, s.key))
 	}
 
 	response, err := s.client.Do(request)
@@ -92,7 +92,7 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 	return nil
 }
 
-func customBackoff(min, max time.Duration, attemptNum int, _ *http.Response) time.Duration {
+func CustomBackoff(min, max time.Duration, attemptNum int, _ *http.Response) time.Duration {
 	switch attemptNum {
 	case 0:
 		return min
@@ -105,7 +105,7 @@ func customBackoff(min, max time.Duration, attemptNum int, _ *http.Response) tim
 	}
 }
 
-func getHashBodySHA256(data []byte, key string) string {
+func GetHashBodySHA256(data []byte, key string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))

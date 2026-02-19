@@ -62,7 +62,7 @@ func ExampleMetricsHandler_UpdateMetric_json_hmac() {
 	}
 	body, _ := json.Marshal(metric)
 	key := "secret"
-	expectedHash := getHashBodySHA256(body, key)
+	expectedHash := GetHashBodySHA256(body, key)
 
 	h := NewMetricsHandler(mockService, nil, key)
 	r := chi.NewRouter()
@@ -91,7 +91,7 @@ func ExampleMetricsHandler_UpdateMetrics_batch() {
 
 	body, _ := json.Marshal(metrics)
 	key := "secret"
-	expectedHash := getHashBodySHA256(body, key)
+	expectedHash := GetHashBodySHA256(body, key)
 
 	h := NewMetricsHandler(mockService, nil, key)
 	r := chi.NewRouter()

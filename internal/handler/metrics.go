@@ -193,7 +193,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if h.key != "" {
-		w.Header().Set(hashHeaderName, getHashBodySHA256(bodyBytes, h.key))
+		w.Header().Set(hashHeaderName, GetHashBodySHA256(bodyBytes, h.key))
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
@@ -293,7 +293,7 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "text/html")
 	if h.key != "" {
-		w.Header().Set(hashHeaderName, getHashBodySHA256([]byte(metricsPageTemplate), h.key))
+		w.Header().Set(hashHeaderName, GetHashBodySHA256([]byte(metricsPageTemplate), h.key))
 	}
 	w.WriteHeader(http.StatusOK)
 
@@ -323,7 +323,7 @@ func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
 	}
 
 	if h.key != "" {
-		expectedHash := getHashBodySHA256(bodyBytes, h.key)
+		expectedHash := GetHashBodySHA256(bodyBytes, h.key)
 
 		return hmac.Equal([]byte(expectedHash), []byte(headerHash))
 	}
@@ -331,8 +331,8 @@ func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
 	return true
 }
 
-// getHashBodySHA256 computes HMAC-SHA256 hex for request body.
-func getHashBodySHA256(data []byte, key string) string {
+// GetHashBodySHA256 computes HMAC-SHA256 hex for request body.
+func GetHashBodySHA256(data []byte, key string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
