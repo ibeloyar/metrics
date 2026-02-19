@@ -25,7 +25,9 @@ run-server:
 
 .PHONY: mock
 mock:
-	@echo "Generating mock for Service..."
+	@echo "Generating mock for agent.Service..."
+	mockgen -destination=internal/agent/service/mocks/service_mock.go -package=service -source=internal/agent/workerpool/workerpool.go Service
+	@echo "Generating mock for server.Service..."
 	mockgen -destination=internal/service/mocks/service_mock.go -package=service -source=internal/handler/metrics.go Service
 
 .PHONY: test
@@ -35,8 +37,9 @@ test:
 .PHONY: test_cover
 test_cover:
 	$(GO) test -coverprofile=coverage.out ./...
-	$(GO) tool cover -func=coverage.out
-	rm coverage.out
+	cat coverage.out | grep -v '/mocks\|/test\|/vendor\|/internal/model' > coverage.filtered.out
+	$(GO) tool cover -func=coverage.filtered.out
+	rm coverage.out coverage.filtered.out
 
 .PHONY: test_iter
 test_iter:
