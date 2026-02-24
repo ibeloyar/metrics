@@ -14,7 +14,7 @@ type Storage interface {
 	Ping() error
 	GetMetric(name string) *model.Metrics
 	GetMetrics() map[string]model.Metrics
-	SetMetric(metric model.Metrics) error
+	SetMetric(metric *model.Metrics) error
 	SetMetrics(metrics []model.Metrics) error
 	IncrementCountMetricValue(name string, delta *int64) error
 
@@ -40,7 +40,7 @@ func New(s Storage, a *audit.AuditSubject) *Service {
 // Gauge: uses storage.SetMetric
 // Counter: uses storage.IncrementCountMetricValue (accumulation)
 // Returns APIError with HTTP status codes.
-func (s *Service) SetMetric(metric model.Metrics) *model.APIError {
+func (s *Service) SetMetric(metric *model.Metrics) *model.APIError {
 	if !s.IsValidMetricType(metric.MType) {
 		return &model.APIError{
 			Code:    http.StatusBadRequest,

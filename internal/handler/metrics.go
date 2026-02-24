@@ -42,7 +42,7 @@ type Service interface {
 	Ping() error
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
-	SetMetric(metric model.Metrics) *model.APIError
+	SetMetric(metric *model.Metrics) *model.APIError
 	SetMetrics(metrics []model.Metrics, remoteAddr string) *model.APIError
 
 	IsValidMetricType(metricType string) bool
@@ -117,7 +117,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		apiErr := h.service.SetMetric(model.Metrics{
+		apiErr := h.service.SetMetric(&model.Metrics{
 			ID:    n,
 			MType: model.Counter,
 			Delta: &delta,
@@ -135,7 +135,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		apiErr := h.service.SetMetric(model.Metrics{
+		apiErr := h.service.SetMetric(&model.Metrics{
 			ID:    n,
 			MType: model.Gauge,
 			Value: &value,
@@ -234,7 +234,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiErr := h.service.SetMetric(body)
+	apiErr := h.service.SetMetric(&body)
 	if apiErr != nil {
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return

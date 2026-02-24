@@ -124,7 +124,7 @@ func (s *MemStorage) GetMetrics() map[string]model.Metrics {
 // Counter: overwrites Delta, sets Value=nil.
 // Unknown types return error.
 // Saves immediately if no ticker configured.
-func (s *MemStorage) SetMetric(metric model.Metrics) error {
+func (s *MemStorage) SetMetric(metric *model.Metrics) error {
 	switch metric.MType {
 	case model.Gauge:
 		s.metrics[metric.ID] = model.Metrics{
@@ -178,7 +178,7 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 		case model.Counter:
 			oldMetric, ok := s.metrics[metric.ID]
 			if !ok {
-				return s.SetMetric(model.Metrics{
+				return s.SetMetric(&model.Metrics{
 					ID:    metric.ID,
 					MType: model.Counter,
 					Value: nil,
@@ -202,7 +202,6 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 				Hash:  "",
 			}
 		default:
-			fmt.Printf("unknown metric type: %s", metric.MType)
 			return fmt.Errorf("unknown metric type: %s", metric.MType)
 		}
 	}
@@ -224,7 +223,7 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	oldMetric := s.GetMetric(name)
 	if oldMetric == nil {
-		return s.SetMetric(model.Metrics{
+		return s.SetMetric(&model.Metrics{
 			ID:    name,
 			MType: model.Counter,
 			Value: nil,

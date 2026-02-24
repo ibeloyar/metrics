@@ -52,7 +52,8 @@ ifdef ITER
 	-source-path=. \
 	-server-port=8080 \
 	-database-dsn="host=$(DB_HOST) user=$(DB_USER) password=$(DB_PASS) dbname=$(DB_NAME) sslmode=disable" \
-	-file-storage-path=data/metrics.json
+	-file-storage-path=data/metrics.json \
+	-key=test
 else
 	@echo "Require variable ITER not found"
 endif

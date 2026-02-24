@@ -80,8 +80,12 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 	router = handler.InitRoutes(router, metricsHandler, cfg.Pprof)
 
 	srv := &http.Server{
-		Addr:    cfg.Addr,
-		Handler: router,
+		Addr:              cfg.Addr,
+		Handler:           router,
+		ReadTimeout:       10 * time.Second,  // time to read request body
+		ReadHeaderTimeout: 5 * time.Second,   // time to read headers
+		WriteTimeout:      30 * time.Second,  // time to send response
+		IdleTimeout:       120 * time.Second, // idle connection timeout
 	}
 
 	return srv

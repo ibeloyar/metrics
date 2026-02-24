@@ -142,7 +142,7 @@ func TestMetricsHandler_UpdateMetricQuery_Gauge(t *testing.T) {
 
 	mockSvc := service.NewMockService(ctrl)
 	mockSvc.EXPECT().IsValidMetricType("gauge").Return(true)
-	mockSvc.EXPECT().SetMetric(model.Metrics{
+	mockSvc.EXPECT().SetMetric(&model.Metrics{
 		ID:    "cpu",
 		MType: model.Gauge,
 		Value: floatPtr(0.75),

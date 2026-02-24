@@ -93,7 +93,7 @@ func (mr *MockServiceMockRecorder) Ping() *gomock.Call {
 }
 
 // SetMetric mocks base method.
-func (m *MockService) SetMetric(metric model.Metrics) *model.APIError {
+func (m *MockService) SetMetric(metric *model.Metrics) *model.APIError {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMetric", metric)
 	ret0, _ := ret[0].(*model.APIError)

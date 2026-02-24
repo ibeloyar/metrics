@@ -1,8 +1,57 @@
-# go-musthave-metrics-tpl
+# Metrics
 
 Metrics and alerting collection service
 
-### Last pprof diff
+## Get started
+
+### Server usage `./cmd/server/server [flags]`
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-a, --address string` | Address for the metrics server to listen on | `:8080` |
+| `-audit-file string` | Path to the audit log file | |
+| `-audit-url string` | URL to send audit logs to | |
+| `-d, --database string` | Database connection string | |
+| `-f, --file string` | File storage path for metrics | `data/metrics.json` |
+| `-i, --interval uint` | Metrics save interval to file (seconds) | `300` |
+| `-k, --key string` | Key for hashing | |
+| `-pprof` | Enable pprof profiling endpoints | |
+| `-r, --restore` | Restore metrics from file on startup | |
+
+**Basic server with default settings**
+```
+./cmd/server/server
+```
+
+**Custom address, database, and persistent storage**
+```
+./cmd/server/server \
+    -a ":9090" \
+    -d "postgres://user:pass@localhost/db" \
+    -f "./metrics.json" \
+    -i 60 \
+    -pprof \
+    -r
+```
+
+**With audit logging** 
+```
+./cmd/server/server \
+    -audit-file "./audit.log" \
+    -audit-url "https://audit.example.com/api/logs"
+```
+
+### Agent usage `./cmd/agent/agent [flags]`
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-a, --address string` | Address for the metrics server to listen on | `:8080` |
+| `-r, --report-interval int` | Send report metrics interval (seconds) | `10` |
+| `-p, --poll-interval int` | Read metrics interval (seconds) | `2` |
+| `-k, --key string` | Key for hashing | `""` |
+| `-l, --rate-limit int` | Rate limit for goroutines | `3` |
+
+## Last pprof diff
 ```
 File: ___2go_run_LOCAL
 Build ID: cb99a7f2106c24b99d7503bb5697bb1d9531a4b7
@@ -63,7 +112,7 @@ Dropped 2 nodes (cum <= 30.77kB)
          0     0% 58.33% -1024.03kB 16.64%  text/template/parse.Parse
 ```
 
-### Last test cover
+## Last test cover
 ```
 go tool cover -func=coverage.filtered.out
 github.com/ibeloyar/metrics/cmd/agent/main.go:11:                               main                            0.0%

@@ -139,7 +139,7 @@ func (s *PGStorage) GetMetrics() map[string]model.Metrics {
 //
 // Uses UPSERT (INSERT ... ON CONFLICT DO UPDATE) semantics.
 // All fields are overwritten on conflict.
-func (s *PGStorage) SetMetric(metric model.Metrics) error {
+func (s *PGStorage) SetMetric(metric *model.Metrics) error {
 	// ON CONFLICT (id) DO UPDATE SET - если строка с id уже сущевствует, сделать UPDATE
 	query := `INSERT INTO metrics (id, mtype, delta, value, hash) 
 		VALUES ($1, $2, $3, $4, $5)
