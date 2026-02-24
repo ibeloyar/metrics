@@ -35,12 +35,12 @@ func LoggingMiddleware(logger *zap.SugaredLogger) func(http.Handler) http.Handle
 			next.ServeHTTP(rw, r)
 
 			duration := time.Since(start)
-			logger.Info("request->",
-				" uri: ", r.RequestURI,
-				" method: ", r.Method,
-				" duration: ", duration,
-				" status: ", rw.responseData.status,
-				" size: ", rw.responseData.size,
+			logger.Info("HTTP request",
+				zap.String("method", r.Method),
+				zap.String("uri", r.RequestURI),
+				zap.Int("status", rw.responseData.status),
+				zap.Int("size", rw.responseData.size),
+				zap.Duration("duration", duration),
 			)
 		})
 	}

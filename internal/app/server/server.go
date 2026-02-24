@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/ibeloyar/metrics/internal/audit"
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
 	"github.com/ibeloyar/metrics/internal/middleware/gzip"
@@ -55,27 +56,36 @@ func Run(cfg config.Config) error {
 		storage = repo
 	}
 
-	srv := buildServer(cfg, storage, lg)
+	auditSubject, err := initAudit(cfg)
+	if err != nil {
+		return fmt.Errorf("audit init: %w", err)
+	}
+
+	srv := buildServer(cfg, storage, lg, auditSubject)
 
 	return runServer(srv, storage, lg, cfg.Addr)
 }
 
-func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger) *http.Server {
+func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger, auditSubject *audit.AuditSubject) *http.Server {
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
-	s := service.New(storage)
+	s := service.New(storage, auditSubject)
 
 	metricsHandler := handler.NewMetricsHandler(s, lg, cfg.Key)
 
-	router = handler.InitRoutes(router, metricsHandler)
+	router = handler.InitRoutes(router, metricsHandler, cfg.Pprof)
 
 	srv := &http.Server{
-		Addr:    cfg.Addr,
-		Handler: router,
+		Addr:              cfg.Addr,
+		Handler:           router,
+		ReadTimeout:       10 * time.Second,  // time to read request body
+		ReadHeaderTimeout: 5 * time.Second,   // time to read headers
+		WriteTimeout:      30 * time.Second,  // time to send response
+		IdleTimeout:       120 * time.Second, // idle connection timeout
 	}
 
 	return srv
@@ -109,4 +119,26 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 
 	lg.Info("server shutdown success")
 	return nil
+}
+
+func initAudit(cfg config.Config) (*audit.AuditSubject, error) {
+	auditSubject := audit.NewSubject()
+
+	if cfg.AuditFile != "" {
+		if fObs, err := audit.NewFileAuditObserver(cfg.AuditFile); err == nil && fObs != nil {
+			auditSubject.Register(fObs)
+		} else {
+			return nil, fmt.Errorf("file audit init error: %v", err)
+		}
+	}
+
+	if cfg.AuditURL != "" {
+		if hObs, err := audit.NewHTTPAuditObserver(cfg.AuditURL); err == nil && hObs != nil {
+			auditSubject.Register(hObs)
+		} else {
+			return nil, fmt.Errorf("http audit init error: %v", err)
+		}
+	}
+
+	return auditSubject, nil
 }

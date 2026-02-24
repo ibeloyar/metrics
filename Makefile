@@ -1,6 +1,6 @@
 GO = go
 MAKE = make
-DB_HOST=192.168.0.101
+DB_HOST=192.168.0.102
 DB_USER=metrics
 DB_NAME=metrics
 DB_PASS=metrics
@@ -23,6 +23,12 @@ run-agent:
 run-server:
 	$(GO) run cmd/server/main.go
 
+.PHONY: mock
+mock:
+	@echo "Generating mock for agent.Service..."
+	mockgen -destination=internal/agent/service/mocks/service_mock.go -package=service -source=internal/agent/workerpool/workerpool.go Service
+	@echo "Generating mock for server.Service..."
+	mockgen -destination=internal/service/mocks/service_mock.go -package=service -source=internal/handler/metrics.go Service
 
 .PHONY: test
 test:
@@ -31,8 +37,9 @@ test:
 .PHONY: test_cover
 test_cover:
 	$(GO) test -coverprofile=coverage.out ./...
-	$(GO) tool cover -func=coverage.out
-	rm coverage.out
+	cat coverage.out | grep -v '/mocks\|/test\|/vendor\|/internal/model' > coverage.filtered.out
+	$(GO) tool cover -func=coverage.filtered.out
+	rm coverage.out coverage.filtered.out
 
 .PHONY: test_iter
 test_iter:
@@ -79,6 +86,54 @@ endif
 .PHONY: install-tools
 install-tools:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest # golang-migrate CLI
+	go install github.com/golang/mock/mockgen@latest  # mocks for tests
+
+.PHONY: profile-base
+profile-base:
+	@mkdir -p ./profiles
+	@wrk -t4 -c100 -d30s http://localhost:8080 > /dev/null 2>&1 &
+	@echo "Wait... 10s"
+	@sleep 10
+	@curl http://localhost:8080/debug/pprof/heap > profiles/base.pprof
+
+.PHONY: profile-result
+profile-result:
+	@mkdir -p ./profiles
+	@wrk -t4 -c100 -d30s http://localhost:8080 > /dev/null 2>&1 &
+	@echo "Wait... 10s"
+	@sleep 10
+	@curl http://localhost:8080/debug/pprof/heap > profiles/result.pprof
+
+.PHONY: profile-diff
+profile-diff:
+	@go tool pprof -top -diff_base=profiles/base.pprof profiles/result.pprof
+
+.PHONY: gofmt
+gofmt:
+	@gofmt -w ./..
+
+.PHONY: docs
+docs:
+ifndef PKG
+	@echo "Usage: make docs PKG=<service|pgstorage|memstorage|filestorage|handlers>"
+	@exit 1
+endif
+
+ifeq ($(PKG),service)
+	@go doc -all ./internal/service
+else ifeq ($(PKG),pgstorage)
+	@go doc -all ./internal/repository/pgstorage
+else ifeq ($(PKG),memstorage)
+	@go doc -all ./internal/repository/memstorage
+else ifeq ($(PKG),filestorage)
+	@go doc -all ./internal/repository/filestorage
+else ifeq ($(PKG),handler)
+	@go doc -all ./internal/handler
+else
+	@echo "Unknown PKG: $(PKG)"
+	@echo "Available: service | pgstorage | memstorage | filestorage | handler"
+	@exit 1
+endif
 
 .PHONY: help
 help:
@@ -94,3 +149,8 @@ help:
 	@echo "migrate-down      | run DOWN migrations"
 	@echo "migrate-create    | run create migration with NAME; EXAMPLE: make NAME=add_users migrate-create"
 	@echo "install-tools     | install libs for work with project"
+	@echo "profile-base      | base pprof heap check"
+	@echo "profile-result    | result pprof heap check"
+	@echo "profile-diff      | show pprof result difference"
+	@echo "gofmt             | format code"
+	@echo "docs              | show Go docs; EXAMPLE: make docs PKG=pgstorage|memstorage|handlers|service|handler"

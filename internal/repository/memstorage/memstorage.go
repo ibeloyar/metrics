@@ -10,11 +10,13 @@ import (
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
+// FileStorage defines file persistence interface for metrics.
 type FileStorage interface {
 	Save(map[string]model.Metrics) error
 	Load() (map[string]model.Metrics, error)
 }
 
+// MemStorage is thread-safe in-memory metrics storage with file persistence.
 type MemStorage struct {
 	metrics          map[string]model.Metrics
 	saveMetricTicker *time.Ticker
@@ -25,6 +27,11 @@ type MemStorage struct {
 	mu sync.RWMutex
 }
 
+// New creates MemStorage instance.
+//
+// storeSaveInterval: 0 = save on every write, >0 = periodic save interval in seconds.
+// restore: true = load metrics from file on Init().
+// fileStorage: JSON, YAML or other file implementation.
 func New(fileStorage FileStorage, storeSaveInterval uint64, restore bool) *MemStorage {
 	var saveMetricTicker *time.Ticker = nil
 
@@ -40,6 +47,10 @@ func New(fileStorage FileStorage, storeSaveInterval uint64, restore bool) *MemSt
 	}
 }
 
+// Init initializes storage.
+//
+// Loads metrics from file if restore=true (ignores os.ErrNotExist).
+// Starts periodic save goroutine if storeSaveInterval > 0.
 func (s *MemStorage) Init() error {
 	if s.restore {
 		metrics, err := s.fileStorage.Load()
@@ -59,6 +70,7 @@ func (s *MemStorage) Init() error {
 	return nil
 }
 
+// SetInitMetrics replaces all metrics with provided map (used after restore).
 func (s *MemStorage) SetInitMetrics(metrics map[string]model.Metrics) {
 	s.metrics = metrics
 }
@@ -76,6 +88,7 @@ func (s *MemStorage) startSavingMetrics() {
 	}()
 }
 
+// Shutdown stops ticker and saves all metrics to file.
 func (s *MemStorage) Shutdown() error {
 	if s.saveMetricTicker != nil {
 		s.saveMetricTicker.Stop()
@@ -91,6 +104,7 @@ func (s *MemStorage) Shutdown() error {
 	return nil
 }
 
+// GetMetric returns single metric by ID or nil if not found.
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
 	v, ok := s.metrics[name]
 	if !ok {
@@ -99,11 +113,18 @@ func (s *MemStorage) GetMetric(name string) *model.Metrics {
 	return &v
 }
 
+// GetMetrics returns shallow copy of all metrics.
 func (s *MemStorage) GetMetrics() map[string]model.Metrics {
 	return s.metrics
 }
 
-func (s *MemStorage) SetMetric(metric model.Metrics) error {
+// SetMetric stores/updates single metric.
+//
+// Gauge: overwrites Value, sets Delta=nil.
+// Counter: overwrites Delta, sets Value=nil.
+// Unknown types return error.
+// Saves immediately if no ticker configured.
+func (s *MemStorage) SetMetric(metric *model.Metrics) error {
 	switch metric.MType {
 	case model.Gauge:
 		s.metrics[metric.ID] = model.Metrics{
@@ -134,6 +155,12 @@ func (s *MemStorage) SetMetric(metric model.Metrics) error {
 	return nil
 }
 
+// SetMetrics stores/updates multiple metrics atomically.
+//
+// Gauge: overwrites Value.
+// Counter: accumulates Delta (existing + new).
+// Unknown types return error.
+// Saves immediately if no ticker configured.
 func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -151,7 +178,7 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 		case model.Counter:
 			oldMetric, ok := s.metrics[metric.ID]
 			if !ok {
-				return s.SetMetric(model.Metrics{
+				return s.SetMetric(&model.Metrics{
 					ID:    metric.ID,
 					MType: model.Counter,
 					Value: nil,
@@ -175,7 +202,6 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 				Hash:  "",
 			}
 		default:
-			fmt.Printf("unknown metric type: %s", metric.MType)
 			return fmt.Errorf("unknown metric type: %s", metric.MType)
 		}
 	}
@@ -189,10 +215,15 @@ func (s *MemStorage) SetMetrics(metrics []model.Metrics) error {
 	return nil
 }
 
+// IncrementCountMetricValue increments counter delta.
+//
+// Creates counter if doesn't exist.
+// Accumulates delta values.
+// Saves immediately if no ticker configured.
 func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error {
 	oldMetric := s.GetMetric(name)
 	if oldMetric == nil {
-		return s.SetMetric(model.Metrics{
+		return s.SetMetric(&model.Metrics{
 			ID:    name,
 			MType: model.Counter,
 			Value: nil,
@@ -228,6 +259,7 @@ func (s *MemStorage) IncrementCountMetricValue(name string, delta *int64) error 
 	return nil
 }
 
+// Ping always returns nil (in-memory storage).
 func (s *MemStorage) Ping() error {
 	return nil
 }

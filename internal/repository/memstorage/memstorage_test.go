@@ -30,7 +30,7 @@ func TestSetMetric(t *testing.T) {
 		metricType := model.Counter
 		metricDelta := int64(2)
 
-		err := storage.SetMetric(model.Metrics{
+		err := storage.SetMetric(&model.Metrics{
 			ID:    metricName,
 			MType: metricType,
 			Delta: &metricDelta,
@@ -95,7 +95,7 @@ func TestGetMetric(t *testing.T) {
 	metricType := model.Gauge
 	metricValue := 2.05
 
-	err := storage.SetMetric(model.Metrics{
+	err := storage.SetMetric(&model.Metrics{
 		ID:    metricName,
 		MType: metricType,
 		Value: &metricValue,
@@ -131,7 +131,7 @@ func TestGetMetrics(t *testing.T) {
 	metricNames := []string{"one", "two", "three"}
 
 	for i, v := range metricNames {
-		err := storage.SetMetric(model.Metrics{
+		err := storage.SetMetric(&model.Metrics{
 			ID:    v,
 			MType: model.Gauge,
 			Value: pointer(float64(i) + 0.01),

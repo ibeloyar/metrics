@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -16,7 +17,20 @@ type MetricHandlers interface {
 	Ping(w http.ResponseWriter, r *http.Request)
 }
 
-func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers) *chi.Mux {
+// InitRoutes configures Chi router with metrics API endpoints and optional pprof.
+//
+// Standard Metrics API endpoints:
+//
+//	GET      /                             - HTML metrics table
+//	GET      /ping                         - health check
+//	GET      /value/{type}/{name}          - get metric (query params)
+//	POST     /value/                       - get metric (JSON)
+//	POST     /update/                      - update metric (JSON + HMAC)
+//	POST     /updates/                     - batch update (JSON + HMAC)
+//	POST     /update/{type}/{name}/{value} - update metric (query params)
+//
+// Optional: /debug/pprof/* when pprofFlag=true
+func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers, pprofFlag bool) *chi.Mux {
 
 	r.Get("/", metricHandlers.GetMetricsPage)
 	r.Get("/ping", metricHandlers.Ping)
@@ -27,6 +41,11 @@ func InitRoutes(r *chi.Mux, metricHandlers MetricHandlers) *chi.Mux {
 	r.Post("/update/", metricHandlers.UpdateMetric)
 	r.Post("/updates/", metricHandlers.UpdateMetrics)
 	r.Post("/update/{type}/{name}/{value}", metricHandlers.UpdateMetricQuery)
+
+	if pprofFlag {
+		r.Mount("/debug/pprof", http.HandlerFunc(pprof.Index))
+		r.Handle("/debug/pprof/*", http.DefaultServeMux)
+	}
 
 	return r
 }

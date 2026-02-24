@@ -7,15 +7,19 @@ import (
 	"go.uber.org/zap"
 )
 
+type Service interface {
+	SendMetrics(metrics []service.SendMetricBody) error
+}
+
 type WorkerPool struct {
 	rateLimit int
 	jobs      chan []service.SendMetricBody
-	service   *service.Service
+	service   Service
 	lg        *zap.SugaredLogger
 	wg        sync.WaitGroup
 }
 
-func New(rateLimit int, srv *service.Service, lg *zap.SugaredLogger) *WorkerPool {
+func New(rateLimit int, srv Service, lg *zap.SugaredLogger) *WorkerPool {
 	return &WorkerPool{
 		rateLimit: rateLimit,
 		jobs:      make(chan []service.SendMetricBody, rateLimit),
@@ -41,7 +45,7 @@ func (wp *WorkerPool) Dispatch(metrics []service.SendMetricBody) {
 
 func (wp *WorkerPool) worker() {
 	defer wp.wg.Done()
-	
+
 	for metrics := range wp.jobs {
 		if err := wp.service.SendMetrics(metrics); err != nil {
 			wp.lg.Error("worker failed to send metrics: ", err)

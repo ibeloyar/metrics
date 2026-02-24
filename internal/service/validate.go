@@ -6,6 +6,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/model"
 )
 
+// IsValidMetricType checks if metric type is "gauge" or "counter".
 func (s *Service) IsValidMetricType(metricType string) bool {
 	if metricType == model.Counter || metricType == model.Gauge {
 		return true
@@ -14,6 +15,7 @@ func (s *Service) IsValidMetricType(metricType string) bool {
 	return false
 }
 
+// ValidateMetric validates single metric type and required fields.
 func (s *Service) ValidateMetric(metric model.Metrics) error {
 	if metric.MType != model.Counter && metric.MType != model.Gauge {
 		return errors.New("invalid metric type")
@@ -30,6 +32,7 @@ func (s *Service) ValidateMetric(metric model.Metrics) error {
 	return nil
 }
 
+// ValidateMetrics validates all metrics in batch.
 func (s *Service) ValidateMetrics(metrics []model.Metrics) error {
 	for _, metric := range metrics {
 		if err := s.ValidateMetric(metric); err != nil {

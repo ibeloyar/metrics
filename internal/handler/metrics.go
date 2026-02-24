@@ -16,35 +16,62 @@ import (
 )
 
 const (
+	// hashHeaderName is HTTP header for HMAC-SHA256 checksum.
 	hashHeaderName = "HashSHA256"
 )
 
+var metricsPageTemplate = `
+	<h1>Metrics</h1>
+	<table border="1">
+		<thead>
+			<tr><th>Key</th><th>Value</th></tr>
+		</thead>
+		<tbody>
+			{{range .}}
+			<tr>
+			   <td>{{.ID}}</td>
+			   <td>{{if eq .MType "gauge"}}{{.Value}}{{else if eq .MType "counter"}}{{.Delta}}{{end}}</td>
+			</tr>
+		   {{end}}
+		</tbody>
+	</table>
+	`
+
+// Service defines business logic interface for handlers.
 type Service interface {
 	Ping() error
 	GetMetric(name string) (*model.Metrics, *model.APIError)
 	GetMetrics() ([]model.Metrics, *model.APIError)
-	SetMetric(metric model.Metrics) *model.APIError
-	SetMetrics(metrics []model.Metrics) *model.APIError
+	SetMetric(metric *model.Metrics) *model.APIError
+	SetMetrics(metrics []model.Metrics, remoteAddr string) *model.APIError
 
 	IsValidMetricType(metricType string) bool
 	ValidateMetric(metric model.Metrics) error
 	ValidateMetrics(metrics []model.Metrics) error
 }
 
+// MetricsHandler implements HTTP handlers with service integration.
 type MetricsHandler struct {
 	service Service
 	lg      *zap.SugaredLogger
 	key     string
+
+	metricsPageTemplate *template.Template
 }
 
+// NewMetricsHandler creates handler with parsed HTML template.
 func NewMetricsHandler(s Service, lg *zap.SugaredLogger, key string) *MetricsHandler {
+	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
+
 	return &MetricsHandler{
-		service: s,
-		lg:      lg,
-		key:     key,
+		service:             s,
+		lg:                  lg,
+		key:                 key,
+		metricsPageTemplate: t,
 	}
 }
 
+// GetMetricQuery handles GET /{type}/{name} - returns plain text metric value.
 func (h *MetricsHandler) GetMetricQuery(w http.ResponseWriter, r *http.Request) {
 	n := chi.URLParam(r, "name")
 	t := chi.URLParam(r, "type")
@@ -72,6 +99,7 @@ func (h *MetricsHandler) GetMetricQuery(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// UpdateMetricQuery handles POST /api/v1/{type}/{name}/value - query param updates.
 func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	n := chi.URLParam(r, "name")
@@ -89,7 +117,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		apiErr := h.service.SetMetric(model.Metrics{
+		apiErr := h.service.SetMetric(&model.Metrics{
 			ID:    n,
 			MType: model.Counter,
 			Delta: &delta,
@@ -107,7 +135,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		apiErr := h.service.SetMetric(model.Metrics{
+		apiErr := h.service.SetMetric(&model.Metrics{
 			ID:    n,
 			MType: model.Gauge,
 			Value: &value,
@@ -121,6 +149,7 @@ func (h *MetricsHandler) UpdateMetricQuery(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetMetric handles POST /api/v1/{type}/{name}/value - JSON input with type check.
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.GetMetricBody
 
@@ -164,12 +193,13 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if h.key != "" {
-		w.Header().Set(hashHeaderName, getHashBodySHA256(bodyBytes, h.key))
+		w.Header().Set(hashHeaderName, GetHashBodySHA256(bodyBytes, h.key))
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
 }
 
+// UpdateMetric handles POST /value/ - JSON metric with HMAC validation.
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var body model.Metrics
 
@@ -204,7 +234,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiErr := h.service.SetMetric(body)
+	apiErr := h.service.SetMetric(&body)
 	if apiErr != nil {
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return
@@ -213,6 +243,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetrics handles POST /updates/ - batch JSON metrics with HMAC.
 func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var bodyMetrics []model.Metrics
 
@@ -242,7 +273,7 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiErr := h.service.SetMetrics(bodyMetrics)
+	apiErr := h.service.SetMetrics(bodyMetrics, r.RemoteAddr)
 	if apiErr != nil {
 		h.lg.Errorf("SetMetrics: %s", apiErr.Message)
 		http.Error(w, apiErr.Message, apiErr.Code)
@@ -252,39 +283,21 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetMetricsPage renders HTML table at root "/" with metrics.
 func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) {
-	metricsPageTemplate := `
-	<h1>Metrics</h1>
-	<table border="1">
-		<thead>
-			<tr><th>Key</th><th>Value</th></tr>
-		</thead>
-		<tbody>
-			{{range .}}
-			<tr>
-			   <td>{{.ID}}</td>
-			   <td>{{if eq .MType "gauge"}}{{.Value}}{{else if eq .MType "counter"}}{{.Delta}}{{end}}</td>
-			</tr>
-		   {{end}}
-		</tbody>
-	</table>
-	`
-
 	metrics, apiErr := h.service.GetMetrics()
 	if apiErr != nil {
 		http.Error(w, apiErr.Message, apiErr.Code)
 		return
 	}
 
-	t := template.Must(template.New("metrics").Parse(metricsPageTemplate))
-
 	w.Header().Set("Content-Type", "text/html")
 	if h.key != "" {
-		w.Header().Set(hashHeaderName, getHashBodySHA256([]byte(metricsPageTemplate), h.key))
+		w.Header().Set(hashHeaderName, GetHashBodySHA256([]byte(metricsPageTemplate), h.key))
 	}
 	w.WriteHeader(http.StatusOK)
 
-	err := t.Execute(w, metrics)
+	err := h.metricsPageTemplate.Execute(w, metrics)
 	if err != nil {
 		h.lg.Errorf("execute template error: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -292,6 +305,7 @@ func (h *MetricsHandler) GetMetricsPage(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// Ping handles GET /api/ping - health check.
 func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Ping()
 	if err != nil {
@@ -302,13 +316,14 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// checkHash validates HMAC-SHA256 checksum from header.
 func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
 	if headerHash == "" {
 		return true
 	}
 
 	if h.key != "" {
-		expectedHash := getHashBodySHA256(bodyBytes, h.key)
+		expectedHash := GetHashBodySHA256(bodyBytes, h.key)
 
 		return hmac.Equal([]byte(expectedHash), []byte(headerHash))
 	}
@@ -316,7 +331,8 @@ func (h *MetricsHandler) checkHash(bodyBytes []byte, headerHash string) bool {
 	return true
 }
 
-func getHashBodySHA256(data []byte, key string) string {
+// GetHashBodySHA256 computes HMAC-SHA256 hex for request body.
+func GetHashBodySHA256(data []byte, key string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
