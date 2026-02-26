@@ -112,6 +112,14 @@ profile-diff:
 gofmt:
 	@gofmt -w ./..
 
+.PHONY: vet
+vet:
+	@go vet -vettool=./cmd/staticlint/multichecker ./...
+
+.PHONY: vetbuild
+vetbuild:
+	@go build -o ./cmd/staticlint/multichecker ./pkg/multichecker
+
 .PHONY: docs
 docs:
 ifndef PKG
@@ -134,6 +142,8 @@ else
 	@echo "Available: service | pgstorage | memstorage | filestorage | handler"
 	@exit 1
 endif
+
+
 
 .PHONY: help
 help:

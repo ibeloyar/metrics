@@ -151,7 +151,7 @@ func TestFullLifecycle(t *testing.T) {
 		pool.Dispatch([]service.SendMetricBody{{ID: fmt.Sprintf("batch-%d", i)}})
 	}
 
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	pool.Shutdown()
 }
 
