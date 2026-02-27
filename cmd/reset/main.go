@@ -36,6 +36,8 @@ func scanFile(filename string) {
 		return
 	}
 
+	var structsToGenerate []*StructToGenerate
+
 	for _, decl := range node.Decls {
 		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
 			for _, spec := range genDecl.Specs {
@@ -44,22 +46,31 @@ func scanFile(filename string) {
 						if hasGenerateResetComment(genDecl) {
 							pos := fset.Position(typeSpec.Pos())
 
-							fileTemplate, err := generateResetFileTemplate(structType, node, typeSpec)
-							if err != nil {
-								panic(err)
-							}
-
-							if err := os.WriteFile(genPath(pos.Filename), fileTemplate, 0644); err != nil {
-								panic(err)
-							}
-
-							fmt.Printf("Generate for struct %s %s:%d:%d in %s - done \n",
-								typeSpec.Name.Name, filepath.Base(filename), pos.Line, pos.Column, pos.Filename)
+							structsToGenerate = append(structsToGenerate, &StructToGenerate{
+								typeSpec:   typeSpec,
+								structType: structType,
+								pos:        pos,
+							})
 						}
 					}
 				}
 			}
 		}
+	}
+
+	if len(structsToGenerate) > 0 {
+		fileTemplate, err := generateResetFileTemplate(structsToGenerate, node)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		genFile := genPath(filename)
+		if err := os.WriteFile(genFile, fileTemplate, 0644); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Generated reset for %d structs in %s -> %s\n",
+			len(structsToGenerate), filename, genFile)
 	}
 }
 
@@ -96,11 +107,20 @@ func hasReset(v interface{}) bool {
     return ok
 }
 
+`
+
+const ResetFuncHeaderTMP = `
 func (r *%s) Reset() {
 	if r == nil {
 		return
 	}
 `
+
+type StructToGenerate struct {
+	typeSpec   *ast.TypeSpec
+	structType *ast.StructType
+	pos        token.Position
+}
 
 // generateResetFileTemplate generates Go source code for a Reset method implementation
 // for the given struct type. The function analyzes the struct fields using go/ast
@@ -119,57 +139,64 @@ func (r *%s) Reset() {
 //   - *ast.ChanType: channel types (chan int, <-chan string)
 //
 // For unsupported types, zero values are not generated (empty case).
-// Custom types in pointers attempt Reset() call if hasReset() available.
+// Custom types in pointers attempt Reset() call if that available.
 // Extend switch with additional cases for full type coverage.
-func generateResetFileTemplate(structType *ast.StructType, node *ast.File, typeSpec *ast.TypeSpec) ([]byte, error) {
+func generateResetFileTemplate(structs []*StructToGenerate, node *ast.File) ([]byte, error) {
 	var sb strings.Builder
 
-	if _, err := fmt.Fprintf(&sb, ResetFileHeaderTMP, node.Name.Name, typeSpec.Name.Name); err != nil {
+	if _, err := fmt.Fprintf(&sb, ResetFileHeaderTMP, node.Name.Name); err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 
-	for _, field := range structType.Fields.List {
-		switch t := field.Type.(type) {
-		case *ast.Ident:
-			switch t.Name {
-			case "string":
-				if _, err := fmt.Fprintf(&sb, "r.%s = \"\"\n", field.Names[0]); err != nil {
-					return nil, err
-				}
-			case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
-				"float32", "float64", "complex64", "complex128", "byte", "rune":
-				if _, err := fmt.Fprintf(&sb, "r.%s = 0\n", field.Names[0]); err != nil {
-					return nil, err
-				}
-			case "bool":
-				if _, err := fmt.Fprintf(&sb, "r.%s = false\n", field.Names[0]); err != nil {
-					return nil, err
-				}
-			default: // custom types: type MyString string, type MyStruct struct etc
-			}
-		case *ast.ArrayType:
-			if t.Len == nil {
-				// if len == nil, that slice
-				if _, err := fmt.Fprintf(&sb, "r.%s = r.%s[:0]\n", field.Names[0], field.Names[0]); err != nil {
-					return nil, err
-				}
-			}
-		case *ast.MapType:
-			if _, err := fmt.Fprintf(&sb, "clear(r.%s)\n", field.Names[0].Name); err != nil {
-				return nil, err
-			}
-		case *ast.StarExpr:
-			// pointers
-			if _, err := fmt.Fprint(&sb, generateIdentStarExprReset(t.X, field.Names[0].Name)); err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("unknown type %T: %v\n", field.Type, field.Type)
+	for _, s := range structs {
+		if _, err := fmt.Fprintf(&sb, ResetFuncHeaderTMP, s.typeSpec.Name.Name); err != nil {
+			return nil, err
 		}
-	}
 
-	if _, err := fmt.Fprint(&sb, "}\n\n"); err != nil {
-		return nil, err
+		for _, field := range s.structType.Fields.List {
+			switch t := field.Type.(type) {
+			case *ast.Ident:
+				switch t.Name {
+				case "string":
+					if _, err := fmt.Fprintf(&sb, "r.%s = \"\"\n", field.Names[0]); err != nil {
+						return nil, err
+					}
+				case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+					"float32", "float64", "complex64", "complex128", "byte", "rune":
+					if _, err := fmt.Fprintf(&sb, "r.%s = 0\n", field.Names[0]); err != nil {
+						return nil, err
+					}
+				case "bool":
+					if _, err := fmt.Fprintf(&sb, "r.%s = false\n", field.Names[0]); err != nil {
+						return nil, err
+					}
+				default: // custom types: type MyString string, type MyStruct struct etc
+				}
+			case *ast.ArrayType:
+				if t.Len == nil {
+					// if len == nil, that slice
+					if _, err := fmt.Fprintf(&sb, "r.%s = r.%s[:0]\n", field.Names[0], field.Names[0]); err != nil {
+						return nil, err
+					}
+				}
+			case *ast.MapType:
+				if _, err := fmt.Fprintf(&sb, "clear(r.%s)\n", field.Names[0].Name); err != nil {
+					return nil, err
+				}
+			case *ast.StarExpr:
+				// pointers
+				if _, err := fmt.Fprint(&sb, generateIdentStarExprReset(t.X, field.Names[0].Name)); err != nil {
+					return nil, err
+				}
+			default:
+				return nil, fmt.Errorf("unknown type %T: %v\n", field.Type, field.Type)
+			}
+		}
+
+		if _, err := fmt.Fprint(&sb, "}\n"); err != nil {
+			return nil, err
+		}
 	}
 
 	return format.Source([]byte(sb.String()))
@@ -184,6 +211,8 @@ func generateIdentStarExprReset(elemType ast.Expr, fieldName string) string {
 		case "int", "int8", "int16", "int32", "int64",
 			"uint", "uint8", "uint16", "uint32", "uint64":
 			return fmt.Sprintf("if r.%s != nil {\n*r.%s = 0\n}\n", fieldName, fieldName)
+		case "float32", "float64":
+			return fmt.Sprintf("if r.%s != nil {\n*r.%s = 0.0\n}\n", fieldName, fieldName)
 		case "bool":
 			return fmt.Sprintf("if r.%s != nil {\n*r.%s = false\n}\n", fieldName, fieldName)
 		default:

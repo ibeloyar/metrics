@@ -12,7 +12,7 @@ func hasReset(v interface{}) bool {
 	return ok
 }
 
-func (r *ResetableStruct) Reset() {
+func (r *ResettableStruct) Reset() {
 	if r == nil {
 		return
 	}
@@ -28,6 +28,26 @@ func (r *ResetableStruct) Reset() {
 		*r.boolP = false
 	}
 	r.s = r.s[:0]
+	clear(r.m)
+	if r.child != nil && hasReset(r.child) {
+		r.child.Reset()
+	}
+	if r.childWithReset != nil && hasReset(r.childWithReset) {
+		r.childWithReset.Reset()
+	}
+}
+
+func (r *ResettableStruct2) Reset() {
+	if r == nil {
+		return
+	}
+	r.bool = false
+	if r.float32P != nil {
+		*r.float32P = 0.0
+	}
+	if r.float64P != nil {
+		*r.float64P = 0.0
+	}
 	clear(r.m)
 	if r.child != nil && hasReset(r.child) {
 		r.child.Reset()

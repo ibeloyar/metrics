@@ -9,7 +9,7 @@ func (cr *ChildWithReset) Reset() {
 }
 
 // generate:reset
-type ResetableStruct struct {
+type ResettableStruct struct {
 	i              int
 	str            string
 	strP           *string
@@ -17,19 +17,20 @@ type ResetableStruct struct {
 	boolP          *bool
 	s              []int
 	m              map[string]string
-	child          *ResetableStruct
+	child          *ResettableStruct
 	childWithReset *ChildWithReset
 }
 
-//// generate:reset
-//type ResetableStruct2 struct {
-//	i              int
-//	str            string
-//	strP           *string
-//	intP           *int
-//	boolP          *bool
-//	s              []int
-//	m              map[string]string
-//	child          *ResetableStruct
-//	childWithReset *ChildWithReset
-//}
+type NonResettableStruct struct {
+	resettable bool
+}
+
+// generate:reset
+type ResettableStruct2 struct {
+	bool           bool
+	float32P       *float32
+	float64P       *float64
+	m              map[int]string
+	child          *ResettableStruct
+	childWithReset *ChildWithReset
+}
