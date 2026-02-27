@@ -120,6 +120,10 @@ vet:
 vetbuild:
 	@go build -o ./cmd/staticlint/multichecker ./pkg/multichecker
 
+.PHONY: generate
+generate:
+	@go generate ./...
+
 .PHONY: docs
 docs:
 ifndef PKG

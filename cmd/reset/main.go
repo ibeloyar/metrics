@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+//go:generate go run ../../cmd/reset/main.go
+
 func main() {
 	root := "."
 
