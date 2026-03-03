@@ -192,7 +192,7 @@ func generateResetFileTemplate(structs []*StructToGenerate, node *ast.File) ([]b
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("unknown type %T: %v\n", field.Type, field.Type)
+				return nil, fmt.Errorf("unknown type %T: %v", field.Type, field.Type)
 			}
 		}
 
