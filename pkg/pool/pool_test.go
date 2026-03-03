@@ -13,11 +13,6 @@ func (t *TestObject) Reset() {
 }
 
 func TestPoolBasic(t *testing.T) {
-	//obj0 := TestObject{3}
-	//obj0.Reset()
-	//if obj0.value != 0 {
-	//	t.Errorf("zero get with value %d", obj0.value)
-	//}
 	pool := New[*TestObject]()
 
 	if pool.Len() != 0 {
@@ -42,9 +37,10 @@ func TestPoolBasic(t *testing.T) {
 	if obj2 == nil {
 		t.Errorf("second pool get must be non-nil")
 	}
-	if obj2.value != 0 {
+	if obj2 != nil && obj2.value != 0 {
 		t.Errorf("second pool get must be zero got %d", obj2.value)
 	}
+
 	if pool.Len() != 1 {
 		t.Errorf("pool len wust be 1 got %d", pool.Len())
 	}
