@@ -12,8 +12,12 @@ DB_MIGRATIONS_PATH="./migrations"
 
 .PHONY: build
 build:
-	$(GO) build -o cmd/server/server cmd/server/main.go
-	$(GO) build -o cmd/agent/agent cmd/agent/main.go
+	$(GO) build \
+		-ldflags="-X main.buildVersion=v1.0.0 -X main.buildDate=2026-03-04 -X main.buildCommit=$(shell git rev-parse HEAD)" \
+		-o ./cmd/server ./cmd/server
+	$(GO) build \
+		-ldflags="-X main.buildVersion=v1.0.0 -X main.buildDate=2026-03-04 -X main.buildCommit=$(shell git rev-parse HEAD)" \
+		-o ./cmd/agent ./cmd/agent
 
 .PHONY: run-agent
 run-agent:
