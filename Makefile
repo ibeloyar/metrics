@@ -152,7 +152,6 @@ else
 endif
 
 
-
 .PHONY: help
 help:
 	@echo "command           | description"
@@ -171,4 +170,8 @@ help:
 	@echo "profile-result    | result pprof heap check"
 	@echo "profile-diff      | show pprof result difference"
 	@echo "gofmt             | format code"
+	@echo "mock              | generate mockgen mocks"
+	@echo "generate          | run go generate"
+	@echo "vet               | run go vet static analysis"
+	@echo "vetbuild          | build static linter multichecker"
 	@echo "docs              | show Go docs; EXAMPLE: make docs PKG=pgstorage|memstorage|handlers|service|handler"
