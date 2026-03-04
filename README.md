@@ -115,8 +115,18 @@ Dropped 2 nodes (cum <= 30.77kB)
 ## Last test cover
 ```
 go tool cover -func=coverage.filtered.out
-github.com/ibeloyar/metrics/cmd/agent/main.go:11:                               main                            0.0%
-github.com/ibeloyar/metrics/cmd/server/main.go:11:                              main                            0.0%
+github.com/ibeloyar/metrics/cmd/agent/main.go:18:                               main                            0.0%
+github.com/ibeloyar/metrics/cmd/reset/main.go:46:                               main                            0.0%
+github.com/ibeloyar/metrics/cmd/reset/main.go:76:                               scanFile                        81.8%
+github.com/ibeloyar/metrics/cmd/reset/main.go:126:                              genPath                         100.0%
+github.com/ibeloyar/metrics/cmd/reset/main.go:150:                              hasGenerateResetComment         100.0%
+github.com/ibeloyar/metrics/cmd/reset/main.go:181:                              generateResetFileTemplate       40.7%
+github.com/ibeloyar/metrics/cmd/reset/main.go:269:                              generateIdentStarExprReset      100.0%
+github.com/ibeloyar/metrics/cmd/reset/mock/reset_struct.gen.go:10:              hasReset                        0.0%
+github.com/ibeloyar/metrics/cmd/reset/mock/reset_struct.gen.go:15:              Reset                           0.0%
+github.com/ibeloyar/metrics/cmd/reset/mock/reset_struct.gen.go:40:              Reset                           0.0%
+github.com/ibeloyar/metrics/cmd/reset/mock/reset_struct.go:7:                   Reset                           0.0%
+github.com/ibeloyar/metrics/cmd/server/main.go:18:                              main                            0.0%
 github.com/ibeloyar/metrics/internal/agent/agent.go:20:                         pointer                         100.0%
 github.com/ibeloyar/metrics/internal/agent/agent.go:24:                         Run                             0.0%
 github.com/ibeloyar/metrics/internal/agent/agent.go:51:                         readRuntimeMetricsLoop          66.7%
@@ -143,8 +153,8 @@ github.com/ibeloyar/metrics/internal/agent/workerpool/workerpool.go:46:         
 github.com/ibeloyar/metrics/internal/agent/workerpool/workerpool.go:58:         Shutdown                        100.0%
 github.com/ibeloyar/metrics/internal/app/server/server.go:28:                   Run                             0.0%
 github.com/ibeloyar/metrics/internal/app/server/server.go:69:                   buildServer                     0.0%
-github.com/ibeloyar/metrics/internal/app/server/server.go:90:                   runServer                       0.0%
-github.com/ibeloyar/metrics/internal/app/server/server.go:120:                  initAudit                       0.0%
+github.com/ibeloyar/metrics/internal/app/server/server.go:94:                   runServer                       0.0%
+github.com/ibeloyar/metrics/internal/app/server/server.go:124:                  initAudit                       0.0%
 github.com/ibeloyar/metrics/internal/audit/audit.go:21:                         NewSubject                      100.0%
 github.com/ibeloyar/metrics/internal/audit/audit.go:25:                         Register                        100.0%
 github.com/ibeloyar/metrics/internal/audit/audit.go:31:                         NotifyAll                       100.0%
@@ -190,21 +200,21 @@ github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:108:   
 github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:117:   GetMetrics                      100.0%
 github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:127:   SetMetric                       62.5%
 github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:164:   SetMetrics                      0.0%
-github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:224:   IncrementCountMetricValue       85.7%
-github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:264:   Ping                            0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:23:       NewPostgresErrorClassifier      0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:41:       Classify                        0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:62:       classifyPgError                 0.0%
+github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:223:   IncrementCountMetricValue       85.7%
+github.com/ibeloyar/metrics/internal/repository/memstorage/memstorage.go:263:   Ping                            0.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:23:       NewPostgresErrorClassifier      100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:41:       Classify                        100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgerrors.go:62:       classifyPgError                 100.0%
 github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:43:      New                             0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:82:      Ping                            0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:90:      GetMetric                       0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:111:     GetMetrics                      0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:142:     SetMetric                       0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:169:     SetMetrics                      0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:208:     IncrementCountMetricValue       0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:227:     Shutdown                        0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:231:     executeWithRetryConnection      0.0%
-github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:257:     getAttemptDelay                 0.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:82:      Ping                            100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:90:      GetMetric                       90.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:111:     GetMetrics                      81.2%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:142:     SetMetric                       100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:169:     SetMetrics                      92.3%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:208:     IncrementCountMetricValue       100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:227:     Shutdown                        100.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:231:     executeWithRetryConnection      50.0%
+github.com/ibeloyar/metrics/internal/repository/pgstorage/pgstorage.go:257:     getAttemptDelay                 100.0%
 github.com/ibeloyar/metrics/internal/service/service.go:31:                     New                             100.0%
 github.com/ibeloyar/metrics/internal/service/service.go:43:                     SetMetric                       0.0%
 github.com/ibeloyar/metrics/internal/service/service.go:82:                     SetMetrics                      0.0%
@@ -216,5 +226,12 @@ github.com/ibeloyar/metrics/internal/service/service.go:144:                    
 github.com/ibeloyar/metrics/internal/service/validate.go:10:                    IsValidMetricType               100.0%
 github.com/ibeloyar/metrics/internal/service/validate.go:19:                    ValidateMetric                  0.0%
 github.com/ibeloyar/metrics/internal/service/validate.go:36:                    ValidateMetrics                 0.0%
-total:                                                                          (statements)                    41.9%
+github.com/ibeloyar/metrics/pkg/multichecker/mainexitanalizer.go:17:            run                             0.0%
+github.com/ibeloyar/metrics/pkg/multichecker/mainexitanalizer.go:51:            isInMainFunc                    100.0%
+github.com/ibeloyar/metrics/pkg/multichecker/multichecker.go:17:                main                            0.0%
+github.com/ibeloyar/metrics/pkg/pool/pool.go:17:                                New                             100.0%
+github.com/ibeloyar/metrics/pkg/pool/pool.go:24:                                Put                             100.0%
+github.com/ibeloyar/metrics/pkg/pool/pool.go:33:                                Get                             100.0%
+github.com/ibeloyar/metrics/pkg/pool/pool.go:46:                                Len                             100.0%
+total:                                                                          (statements)                    50.1%
 ```
