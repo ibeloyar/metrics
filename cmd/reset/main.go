@@ -111,7 +111,7 @@ func scanFile(filename string) {
 
 		genFile := genPath(filename)
 		if err := os.WriteFile(genFile, fileTemplate, 0644); err != nil {
-			panic(err)
+			fmt.Println(err)
 		}
 
 		fmt.Printf("Generated reset for %d structs in %s -> %s\n",

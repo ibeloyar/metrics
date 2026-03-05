@@ -26,7 +26,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" {
+			if ident, okIdent := call.Fun.(*ast.Ident); okIdent && ident.Name == "panic" {
 				if !isInMainFunc(file, call.Pos()) {
 					pass.Reportf(call.Pos(), "panic() запрещен вне main() функции")
 				}
