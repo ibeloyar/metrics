@@ -10,7 +10,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 )
 
-func TestService(t *testing.T) {
+func TestService_IsValidMetricType(t *testing.T) {
 	cfg := config.Config{
 		StoreInterval:   300,
 		Restore:         true,
