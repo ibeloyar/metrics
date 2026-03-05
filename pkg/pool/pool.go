@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"container/list"
 	"sync"
 )
 
@@ -10,39 +9,27 @@ type Resetter interface {
 }
 
 type Pool[T Resetter] struct {
-	mu    sync.Mutex
-	items *list.List
+	items sync.Pool
 }
 
 func New[T Resetter]() *Pool[T] {
 	return &Pool[T]{
-		mu:    sync.Mutex{},
-		items: list.New(),
+		items: sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		},
 	}
 }
 
 func (p *Pool[T]) Put(obj T) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	obj.Reset()
 
-	p.items.PushBack(obj)
+	p.items.Put(&obj)
 }
 
 func (p *Pool[T]) Get() T {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	obj := p.items.Get().(*T)
 
-	if first := p.items.Front(); first != nil {
-		p.items.Remove(first)
-
-		return first.Value.(T)
-	}
-
-	return *new(T)
-}
-
-func (p *Pool[T]) Len() int {
-	return p.items.Len()
+	return *obj
 }

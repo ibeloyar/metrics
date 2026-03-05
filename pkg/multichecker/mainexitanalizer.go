@@ -26,19 +26,36 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
+			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" {
+				if !isInMainFunc(file, call.Pos()) {
+					pass.Reportf(call.Pos(), "panic() запрещен вне main() функции")
+				}
+				return true
+			}
+
 			sel, ok := call.Fun.(*ast.SelectorExpr)
 			if !ok {
 				return true
 			}
 
-			ident, ok := sel.X.(*ast.Ident)
-			if !ok || ident.Name != "os" {
+			xIdent, ok := sel.X.(*ast.Ident)
+			if !ok {
 				return true
 			}
 
-			if sel.Sel.Name == "Exit" {
-				if isInMainFunc(file, call.Pos()) {
-					pass.Reportf(call.Pos(), "os.Exit() запрещен в main() функции")
+			switch xIdent.Name {
+			case "os":
+				if sel.Sel.Name == "Exit" {
+					if !isInMainFunc(file, call.Pos()) {
+						pass.Reportf(call.Pos(), "os.Exit() запрещен вне main() функции")
+					}
+				}
+			case "log":
+				if sel.Sel.Name == "Fatal" || sel.Sel.Name == "Fatalf" || sel.Sel.Name == "Fatalln" ||
+					sel.Sel.Name == "Panic" || sel.Sel.Name == "Panicf" || sel.Sel.Name == "Panicln" {
+					if !isInMainFunc(file, call.Pos()) {
+						pass.Reportf(call.Pos(), "log.%s() запрещен вне main() функции", sel.Sel.Name)
+					}
 				}
 			}
 			return true
