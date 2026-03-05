@@ -38,7 +38,7 @@ func main() {
 		structtag.Analyzer,
 		ineffassign.Analyzer,
 		gocritic.Analyzer,
-		MainExitAnalyzer,
+		ExitAnalyzer,
 	)
 
 	multichecker.Main(checks...)

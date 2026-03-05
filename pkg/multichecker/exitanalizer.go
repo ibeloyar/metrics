@@ -7,8 +7,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var MainExitAnalyzer = &analysis.Analyzer{
-	Name:     "mainexitanalyzer",
+var ExitAnalyzer = &analysis.Analyzer{
+	Name:     "exitanalyzer",
 	Doc:      "Disables os.Exit() in the main() function of the main package",
 	Run:      run,
 	Requires: []*analysis.Analyzer{},
