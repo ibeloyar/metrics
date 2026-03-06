@@ -35,9 +35,9 @@ func Run(cfg config.Config) error {
 	defer lg.Sync()
 
 	if cfg.DatabaseDSN != "" {
-		pgStorage, err := pgstorage.New(cfg.DatabaseDSN)
-		if err != nil {
-			return err
+		pgStorage, pgStorageErr := pgstorage.New(cfg.DatabaseDSN)
+		if pgStorageErr != nil {
+			return pgStorageErr
 		}
 
 		storage = pgStorage
@@ -45,12 +45,12 @@ func Run(cfg config.Config) error {
 		fileStorage := filestorage.New(cfg.FileStoragePath)
 		repo := memstorage.New(fileStorage, cfg.StoreInterval, cfg.Restore)
 
-		if err := repo.Init(); err != nil {
+		if initErr := repo.Init(); initErr != nil {
 			shutdownErr := repo.Shutdown()
 			if shutdownErr != nil {
 				return shutdownErr
 			}
-			return err
+			return initErr
 		}
 
 		storage = repo

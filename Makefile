@@ -12,8 +12,12 @@ DB_MIGRATIONS_PATH="./migrations"
 
 .PHONY: build
 build:
-	$(GO) build -o cmd/server/server cmd/server/main.go
-	$(GO) build -o cmd/agent/agent cmd/agent/main.go
+	$(GO) build \
+		-ldflags="-X main.buildVersion=v1.0.0 -X main.buildDate=2026-03-04 -X main.buildCommit=$(shell git rev-parse HEAD)" \
+		-o ./cmd/server ./cmd/server
+	$(GO) build \
+		-ldflags="-X main.buildVersion=v1.0.0 -X main.buildDate=2026-03-04 -X main.buildCommit=$(shell git rev-parse HEAD)" \
+		-o ./cmd/agent ./cmd/agent
 
 .PHONY: run-agent
 run-agent:
@@ -112,6 +116,18 @@ profile-diff:
 gofmt:
 	@gofmt -w ./..
 
+.PHONY: vet
+vet:
+	@go vet -vettool=./cmd/staticlint/multichecker ./...
+
+.PHONY: vetbuild
+vetbuild:
+	@go build -o ./cmd/staticlint/multichecker ./pkg/multichecker
+
+.PHONY: generate
+generate:
+	@go generate ./...
+
 .PHONY: docs
 docs:
 ifndef PKG
@@ -135,6 +151,7 @@ else
 	@exit 1
 endif
 
+
 .PHONY: help
 help:
 	@echo "command           | description"
@@ -153,4 +170,8 @@ help:
 	@echo "profile-result    | result pprof heap check"
 	@echo "profile-diff      | show pprof result difference"
 	@echo "gofmt             | format code"
+	@echo "mock              | generate mockgen mocks"
+	@echo "generate          | run go generate"
+	@echo "vet               | run go vet static analysis"
+	@echo "vetbuild          | build static linter multichecker"
 	@echo "docs              | show Go docs; EXAMPLE: make docs PKG=pgstorage|memstorage|handlers|service|handler"

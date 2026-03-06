@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/ibeloyar/metrics/internal/agent"
@@ -8,7 +9,17 @@ import (
 	"github.com/ibeloyar/metrics/internal/agent/config"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+
 	cfg := config.Read()
 
 	if err := agent.Run(cfg); err != nil {

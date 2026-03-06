@@ -15,9 +15,12 @@ import (
 var testConfig = config.Config{
 	Addr:            ":8080",
 	StoreInterval:   300,
-	FileStoragePath: "data/metrics.json",
+	FileStoragePath: "mocks/metrics.json",
 	Restore:         true,
 }
+
+func ptrFloat64(v float64) *float64 { return &v }
+func ptrInt64(v int64) *int64       { return &v }
 
 // TestSetMetric - require test, because if this function does not work, all other tests are useless
 func TestSetMetric(t *testing.T) {
@@ -154,4 +157,177 @@ func TestGetMetrics(t *testing.T) {
 		assert.Equal(t, metricNames[2], metrics[metricNames[2]].ID)
 		assert.Equal(t, 2.01, *metrics[metricNames[2]].Value)
 	})
+}
+
+func TestMemStorage_Ping(t *testing.T) {
+	storage := &MemStorage{}
+
+	err := storage.Ping()
+
+	assert.NoError(t, err)
+	assert.Nil(t, err)
+}
+
+func TestMemStorage_SetMetrics_Gauge(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics:     make(map[string]model.Metrics),
+	}
+
+	metrics := []model.Metrics{{
+		ID:    "gauge1",
+		MType: model.Gauge,
+		Value: ptrFloat64(123.45),
+	}}
+
+	err := s.SetMetrics(metrics)
+	require.NoError(t, err)
+
+	stored, exists := s.metrics["gauge1"]
+	require.True(t, exists)
+	assert.Equal(t, model.Gauge, stored.MType)
+	assert.Equal(t, ptrFloat64(123.45), stored.Value)
+	assert.Nil(t, stored.Delta)
+}
+
+func TestMemStorage_SetMetrics_CounterNew(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics:     make(map[string]model.Metrics),
+	}
+
+	metrics := []model.Metrics{{
+		ID:    "counter1",
+		MType: model.Counter,
+		Delta: ptrInt64(42),
+	}}
+
+	err := s.SetMetrics(metrics)
+	require.NoError(t, err)
+
+	stored, exists := s.metrics["counter1"]
+	require.True(t, exists)
+	assert.Equal(t, model.Counter, stored.MType)
+	assert.Equal(t, ptrInt64(42), stored.Delta)
+	assert.Nil(t, stored.Value)
+}
+
+func TestMemStorage_SetMetrics_CounterIncrement(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics: map[string]model.Metrics{
+			"counter1": {
+				ID:    "counter1",
+				MType: model.Counter,
+				Delta: ptrInt64(10),
+			},
+		},
+	}
+
+	metrics := []model.Metrics{{
+		ID:    "counter1",
+		MType: model.Counter,
+		Delta: ptrInt64(32),
+	}}
+
+	err := s.SetMetrics(metrics)
+	require.NoError(t, err)
+
+	stored, exists := s.metrics["counter1"]
+	require.True(t, exists)
+	assert.Equal(t, ptrInt64(42), stored.Delta)
+}
+
+func TestMemStorage_SetMetrics_MultipleMetrics(t *testing.T) {
+	s := &MemStorage{
+		metrics:     make(map[string]model.Metrics),
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+	}
+
+	metrics := []model.Metrics{
+		{
+			ID:    "gauge1",
+			MType: model.Gauge,
+			Value: ptrFloat64(1.23),
+		},
+		{
+			ID:    "counter1",
+			MType: model.Counter,
+			Delta: ptrInt64(5),
+		},
+	}
+
+	err := s.SetMetrics(metrics)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, len(s.metrics))
+	assertGauge(t, s.metrics["gauge1"], 1.23)
+	assertCounter(t, s.metrics["counter1"], 5)
+}
+
+func TestMemStorage_SetMetrics_UnknownType(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics:     make(map[string]model.Metrics),
+	}
+
+	metrics := []model.Metrics{{
+		ID:    "test",
+		MType: "unknown",
+		Delta: ptrInt64(1),
+	}}
+
+	err := s.SetMetrics(metrics)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown metric type: unknown")
+	assert.Empty(t, s.metrics)
+}
+
+func TestMemStorage_SetMetrics_WithFileSave(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics:     make(map[string]model.Metrics),
+	}
+
+	metrics := []model.Metrics{{
+		ID:    "gauge1",
+		MType: model.Gauge,
+		Value: ptrFloat64(99.9),
+	}}
+
+	err := s.SetMetrics(metrics)
+	require.NoError(t, err)
+
+	loaded, err := s.fileStorage.Load()
+	require.NoError(t, err)
+	assert.Equal(t, map[string]model.Metrics{
+		"gauge1": {
+			ID:    "gauge1",
+			MType: model.Gauge,
+			Value: ptrFloat64(99.9),
+		},
+	}, loaded)
+}
+
+func TestMemStorage_SetMetrics_EmptySlice(t *testing.T) {
+	s := &MemStorage{
+		fileStorage: filestorage.New(testConfig.FileStoragePath),
+		metrics:     make(map[string]model.Metrics),
+	}
+
+	err := s.SetMetrics([]model.Metrics{})
+	require.NoError(t, err)
+	assert.Empty(t, s.metrics)
+}
+
+func assertGauge(t *testing.T, m model.Metrics, expected float64) {
+	assert.Equal(t, model.Gauge, m.MType)
+	require.NotNil(t, m.Value)
+	assert.InDelta(t, expected, *m.Value, 0.001)
+}
+
+func assertCounter(t *testing.T, m model.Metrics, expected int64) {
+	assert.Equal(t, model.Counter, m.MType)
+	require.NotNil(t, m.Delta)
+	assert.Equal(t, expected, *m.Delta)
 }
