@@ -16,6 +16,7 @@ const (
 	DefaultAuditFile       = ""
 	DefaultAuditURL        = ""
 	DefaultPprof           = false
+	DefaultCryptoKeyPath   = ""
 )
 
 type Config struct {
@@ -28,6 +29,7 @@ type Config struct {
 	AuditFile       string `env:"AUDIT_FILE"`
 	AuditURL        string `env:"AUDIT_URL"`
 	Pprof           bool   `env:"PPROF"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
 }
 
 func Read() (Config, error) {
@@ -43,6 +45,8 @@ func Read() (Config, error) {
 	flag.StringVar(&config.AuditFile, "audit-file", DefaultAuditFile, "Path to audit log file")
 	flag.StringVar(&config.AuditURL, "audit-url", DefaultAuditURL, "URL to send audit logs")
 	flag.BoolVar(&config.Pprof, "pprof", DefaultPprof, "Enable pprof profiling endpoints")
+
+	flag.StringVar(&config.CryptoKey, "crypto-key", DefaultCryptoKeyPath, "Path to RSA public key file")
 
 	flag.Parse()
 

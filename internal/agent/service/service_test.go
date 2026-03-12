@@ -22,7 +22,7 @@ func ptrFloat64(v float64) *float64 { return &v }
 func ptrInt64(v int64) *int64       { return &v }
 
 func TestNewService(t *testing.T) {
-	svc := NewService(testAddr, testKey)
+	svc := NewService(testAddr, testKey, "")
 
 	assert.NotNil(t, svc.client)
 	assert.Equal(t, testAddr, svc.addr)
@@ -59,7 +59,7 @@ func TestSendMetrics_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := NewService(server.Listener.Addr().String(), testKey)
+	svc := NewService(server.Listener.Addr().String(), testKey, "")
 
 	metrics := []SendMetricBody{
 		{
@@ -84,7 +84,7 @@ func TestSendMetrics_HTTPError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := NewService(server.Listener.Addr().String(), "")
+	svc := NewService(server.Listener.Addr().String(), "", "")
 
 	err := svc.SendMetrics([]SendMetricBody{{ID: "test", MType: "gauge"}})
 	assert.NoError(t, err)
@@ -97,7 +97,7 @@ func TestSendMetrics_NoKeyNoHash(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := NewService(server.Listener.Addr().String(), "")
+	svc := NewService(server.Listener.Addr().String(), "", "")
 
 	err := svc.SendMetrics([]SendMetricBody{{ID: "test", MType: "gauge"}})
 	assert.NoError(t, err)

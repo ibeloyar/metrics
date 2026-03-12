@@ -20,6 +20,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
 	"github.com/ibeloyar/metrics/internal/service"
+	"github.com/ibeloyar/metrics/internal/service/crypto"
 	"go.uber.org/zap"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
@@ -70,6 +71,13 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
+
+	if cfg.CryptoKey != "" {
+		cryptoManager := crypto.NewCryptoManager(cfg.CryptoKey)
+
+		router.Use(cryptoManager.CryptoMiddleware)
+	}
+
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
@@ -92,7 +100,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 }
 
 func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) error {
-	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	lg.Infof("starting server on %s", addr)

@@ -32,7 +32,7 @@ func Run(config config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	s := service.NewService(config.Addr, config.Key)
+	s := service.NewService(config.Addr, config.Key, config.CryptoKey)
 	wp := workerpool.New(config.RateLimit, s, lg)
 	wp.Start()
 

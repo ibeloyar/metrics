@@ -13,6 +13,7 @@ const (
 	DefaultPollInterval   = 2
 	DefaultKey            = ""
 	DefaultRateLimit      = 3
+	DefaultCryptoKeyPath  = ""
 )
 
 type Config struct {
@@ -21,6 +22,7 @@ type Config struct {
 	PollIntervalSec   int    `env:"POLL_INTERVAL"`
 	Key               string `env:"KEY"`
 	RateLimit         int    `env:"RATE_LIMIT"`
+	CryptoKey         string `env:"CRYPTO_KEY"`
 }
 
 func Read() Config {
@@ -31,6 +33,7 @@ func Read() Config {
 	flag.IntVar(&config.PollIntervalSec, "p", DefaultPollInterval, "Read metrics interval")
 	flag.StringVar(&config.Key, "k", DefaultKey, "Key for hash")
 	flag.IntVar(&config.RateLimit, "l", DefaultRateLimit, "Rate limit for goroutines")
+	flag.StringVar(&config.CryptoKey, "crypto-key", DefaultCryptoKeyPath, "Path to RSA public key file")
 
 	flag.Parse()
 

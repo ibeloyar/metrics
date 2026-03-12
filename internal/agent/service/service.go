@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/ibeloyar/metrics/internal/agent/service/crypto"
 )
 
 const (
@@ -28,6 +29,7 @@ type Service struct {
 	client *http.Client
 	addr   string
 	key    string
+	crypto *crypto.CryptoManager
 }
 
 type SendMetricBody struct {
@@ -37,7 +39,7 @@ type SendMetricBody struct {
 	Value *float64 `json:"value,omitempty"` // metric value if MType gauge
 }
 
-func NewService(addr string, key string) *Service {
+func NewService(addr string, key, cryptoKeyPath string) *Service {
 	client := retryablehttp.NewClient()
 	client.RetryMax = maxSendAttempts
 	client.RetryWaitMin = firstRetryDuration
@@ -49,6 +51,7 @@ func NewService(addr string, key string) *Service {
 		client: standardClient,
 		addr:   addr,
 		key:    key,
+		crypto: crypto.NewCryptoManager(cryptoKeyPath),
 	}
 }
 
@@ -56,11 +59,21 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
+	// to JSON
 	bodyBytes, err := json.Marshal(metrics)
 	if err != nil {
 		return err
 	}
 
+	// encrypt RSA
+	if s.crypto != nil && s.crypto.Enabled {
+		bodyBytes, err = s.crypto.EncryptRSA(bodyBytes)
+		if err != nil {
+			return fmt.Errorf("encryption failed: %w; crypto manager status: %w", err, s.crypto.Error)
+		}
+	}
+
+	// gzip
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 
@@ -77,6 +90,9 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 		return err
 	}
 
+	if s.crypto != nil && s.crypto.Enabled {
+		request.Header.Set("X-Crypto-Encrypted", "true")
+	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	if s.key != "" {
