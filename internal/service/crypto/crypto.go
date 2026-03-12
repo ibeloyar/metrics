@@ -92,7 +92,6 @@ func isEncrypted(r *http.Request) bool {
 }
 
 func decryptRequest(r *http.Request, privKey *rsa.PrivateKey) ([]byte, error) {
-	// 1. Читаем gzip
 	gzReader, err := gzip.NewReader(r.Body)
 	if err != nil {
 		return nil, fmt.Errorf("gzip read failed: %w", err)
@@ -104,7 +103,6 @@ func decryptRequest(r *http.Request, privKey *rsa.PrivateKey) ([]byte, error) {
 		return nil, fmt.Errorf("gzip data read failed: %w", err)
 	}
 
-	// 2. Расшифровываем RSA
 	hash := sha256.New()
 	plaintext, err := rsa.DecryptOAEP(hash, nil, privKey, gzData, nil)
 	if err != nil {
@@ -114,7 +112,7 @@ func decryptRequest(r *http.Request, privKey *rsa.PrivateKey) ([]byte, error) {
 	return plaintext, nil
 }
 
-// CryptoMiddleware расшифровывает тело запроса если есть заголовок X-Crypto-Encrypted
+// CryptoMiddleware decrypts the request body if there is an X-Crypto-Encrypted header
 func (cm *CryptoManager) CryptoMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !isEncrypted(r) || !cm.Enabled {
@@ -134,7 +132,6 @@ func (cm *CryptoManager) CryptoMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Заменяем тело запроса расшифрованными данными
 		r.Body = io.NopCloser(bytes.NewReader(decryptedBody))
 		r.Header.Set("Content-Length", fmt.Sprintf("%d", len(decryptedBody)))
 		r.Header.Del("Content-Encoding") // убираем gzip после расшифровки
