@@ -3,6 +3,7 @@ module github.com/ibeloyar/metrics
 go 1.24.9
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-critic/go-critic v0.11.4
@@ -20,7 +21,6 @@ require (
 )
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
