@@ -36,7 +36,7 @@ func New(fileStorage FileStorage, storeSaveInterval time.Duration, restore bool)
 	var saveMetricTicker *time.Ticker = nil
 
 	if storeSaveInterval > 0 {
-		saveMetricTicker = time.NewTicker(time.Duration(storeSaveInterval) * time.Second)
+		saveMetricTicker = time.NewTicker(storeSaveInterval)
 	}
 
 	return &MemStorage{
