@@ -29,10 +29,10 @@ type MemStorage struct {
 
 // New creates MemStorage instance.
 //
-// storeSaveInterval: 0 = save on every write, >0 = periodic save interval in seconds.
+// storeSaveInterval: 0 = save on every write, >0 = periodic save interval in time.Duration
 // restore: true = load metrics from file on Init().
 // fileStorage: JSON, YAML or other file implementation.
-func New(fileStorage FileStorage, storeSaveInterval uint64, restore bool) *MemStorage {
+func New(fileStorage FileStorage, storeSaveInterval time.Duration, restore bool) *MemStorage {
 	var saveMetricTicker *time.Ticker = nil
 
 	if storeSaveInterval > 0 {

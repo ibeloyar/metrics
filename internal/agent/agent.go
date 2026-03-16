@@ -36,9 +36,9 @@ func Run(config config.Config) error {
 	wp := workerpool.New(config.RateLimit, s, lg)
 	wp.Start()
 
-	go readRuntimeMetricsLoop(ctx, repo, config.PollIntervalSec)
-	go readGopsutilMetricsLoop(ctx, repo, config.PollIntervalSec)
-	go sendMetricsLoop(ctx, repo, wp, config.ReportIntervalSec)
+	go readRuntimeMetricsLoop(ctx, repo, config.PollInterval)
+	go readGopsutilMetricsLoop(ctx, repo, config.PollInterval)
+	go sendMetricsLoop(ctx, repo, wp, config.ReportInterval)
 
 	<-ctx.Done()
 
@@ -48,10 +48,10 @@ func Run(config config.Config) error {
 	return nil
 }
 
-func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, pollIntervalSec int) {
+func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, pollInterval time.Duration) {
 	var m runtime.MemStats
 
-	ticker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -66,8 +66,8 @@ func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, po
 	}
 }
 
-func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, pollIntervalSec int) {
-	ticker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, pollInterval time.Duration) {
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -82,8 +82,8 @@ func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, p
 	}
 }
 
-func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *workerpool.WorkerPool, reportIntervalSec int) {
-	ticker := time.NewTicker(time.Duration(reportIntervalSec) * time.Second)
+func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *workerpool.WorkerPool, reportInterval time.Duration) {
+	ticker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
 	for {
 		select {

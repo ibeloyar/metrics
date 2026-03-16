@@ -2,8 +2,11 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func resetFlags() {
@@ -22,15 +25,18 @@ func TestRead_DefaultValues(t *testing.T) {
 
 	os.Args = []string{"cmd"}
 
-	config := Read()
+	config, err := Read()
+	if err != nil {
+		t.Errorf("error reading config: %v", err)
+	}
 	if config.Addr != DefaultAddress {
 		t.Errorf("expected default address %q, got %q", DefaultAddress, config.Addr)
 	}
-	if config.ReportIntervalSec != DefaultReportInterval {
-		t.Errorf("expected default report interval %d, got %d", DefaultReportInterval, config.ReportIntervalSec)
+	if config.ReportInterval != DefaultReportInterval {
+		t.Errorf("expected default report interval %d, got %d", DefaultReportInterval, config.ReportInterval)
 	}
-	if config.PollIntervalSec != DefaultPollInterval {
-		t.Errorf("expected default poll interval %d, got %d", DefaultPollInterval, config.PollIntervalSec)
+	if config.PollInterval != DefaultPollInterval {
+		t.Errorf("expected default poll interval %d, got %d", DefaultPollInterval, config.PollInterval)
 	}
 }
 
@@ -38,58 +44,117 @@ func TestRead_FlagAddress(t *testing.T) {
 	resetFlags()
 	unsetEnvVars()
 
-	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8", "-p", "1"}
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
 
-	config := Read()
+	config, err := Read()
+	if err != nil {
+		t.Errorf("error reading config: %v", err)
+	}
 	if config.Addr != "flag:7070" {
 		t.Errorf("expected address from flag %q, got %q", "flag:7070", config.Addr)
 	}
-	if config.ReportIntervalSec != 8 {
-		t.Errorf("expected report interval from flag %d, got %d", 8, config.ReportIntervalSec)
+	if config.ReportInterval != 8*time.Second {
+		t.Errorf("expected report interval from flag %d, got %d", 8*time.Second, config.ReportInterval)
 	}
-	if config.PollIntervalSec != 1 {
-		t.Errorf("expected poll interval from flag %d, got %d", 1, config.PollIntervalSec)
+	if config.PollInterval != 1*time.Second {
+		t.Errorf("expected poll interval from flag %d, got %d", 1*time.Second, config.PollInterval)
 	}
 }
 
 func TestRead_EnvVariable(t *testing.T) {
 	resetFlags()
 	os.Setenv("ADDRESS", "env:9090")
-	os.Setenv("REPORT_INTERVAL", "20")
-	os.Setenv("POLL_INTERVAL", "5")
+	os.Setenv("REPORT_INTERVAL", "20s")
+	os.Setenv("POLL_INTERVAL", "5s")
 	defer unsetEnvVars()
 
 	os.Args = []string{"cmd"}
 
-	config := Read()
+	config, err := Read()
+	if err != nil {
+		t.Errorf("error reading config: %v", err)
+	}
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
-	if config.ReportIntervalSec != 20 {
-		t.Errorf("expected report interval from env %d, got %d", 20, config.ReportIntervalSec)
+	if config.ReportInterval != 20*time.Second {
+		t.Errorf("expected report interval from env %d, got %d", 20*time.Second, config.ReportInterval)
 	}
-	if config.PollIntervalSec != 5 {
-		t.Errorf("expected poll interval from env %d, got %d", 5, config.PollIntervalSec)
+	if config.PollInterval != 5*time.Second {
+		t.Errorf("expected poll interval from env %d, got %d", 5*time.Second, config.PollInterval)
 	}
 }
 
 func TestRead_EnvOverridesFlag(t *testing.T) {
 	resetFlags()
 	os.Setenv("ADDRESS", "env:9090")
-	os.Setenv("REPORT_INTERVAL", "20")
-	os.Setenv("POLL_INTERVAL", "5")
+	os.Setenv("REPORT_INTERVAL", "20s")
+	os.Setenv("POLL_INTERVAL", "5s")
 	defer unsetEnvVars()
 
-	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8", "-p", "1"}
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
 
-	config := Read()
+	config, err := Read()
+	if err != nil {
+		t.Errorf("error reading config: %v", err)
+	}
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
-	if config.ReportIntervalSec != 20 {
-		t.Errorf("expected report interval from env %d, got %d", 20, config.ReportIntervalSec)
+	if config.ReportInterval != 20*time.Second {
+		t.Errorf("expected report interval from env %d, got %d", 20*time.Second, config.ReportInterval)
 	}
-	if config.PollIntervalSec != 5 {
-		t.Errorf("expected poll interval from env %d, got %d", 5, config.PollIntervalSec)
+	if config.PollInterval != 5*time.Second {
+		t.Errorf("expected poll interval from env %d, got %d", 5*time.Second, config.PollInterval)
+	}
+}
+
+func TestRead_JSONConfig_Applied(t *testing.T) {
+	resetFlags()
+
+	workDir, err := os.Getwd()
+	if err != nil {
+		t.Errorf("could not get working directory: %v", err)
+	}
+
+	os.Setenv("CONFIG", filepath.Join(workDir, "mocks", "test_config.json"))
+	os.Setenv("ADDRESS", "env:9090")
+	defer os.Unsetenv("CONFIG")
+	defer os.Unsetenv("ADDRESS")
+
+	os.Args = []string{"cmd", "-a", "flag:7070"}
+
+	config, err := Read()
+	if err != nil {
+		fmt.Println(err)
+	}
+	if config.Addr != "env:9090" {
+		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
+	}
+	if config.CryptoKey != "/path/to/key.pem" {
+		t.Errorf("expected address from env %q, got %q", "/path/to/key.pem", config.CryptoKey)
+	}
+}
+
+func TestRead_JSONConfig_Not_Applied(t *testing.T) {
+	resetFlags()
+
+	os.Setenv("CONFIG", "")
+	defer os.Unsetenv("CONFIG")
+
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
+
+	config, err := Read()
+	if err != nil {
+		t.Errorf("reading config error: %v", err)
+	}
+	if config.Addr != "flag:7070" {
+		t.Errorf("expected address from env %q, got %q", "flag:7070", config.Addr)
+	}
+	if config.ReportInterval != 8*time.Second {
+		t.Errorf("expected report interval from env %d, got %d", 8*time.Second, config.ReportInterval)
+	}
+	if config.PollInterval != 1*time.Second {
+		t.Errorf("expected poll interval from env %d, got %d", 2*time.Second, config.PollInterval)
 	}
 }

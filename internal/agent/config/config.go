@@ -1,36 +1,49 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
-	"log"
+	"os"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 )
 
 const (
 	DefaultAddress        = ":8080"
-	DefaultReportInterval = 10
-	DefaultPollInterval   = 2
+	DefaultReportInterval = 10 * time.Second
+	DefaultPollInterval   = 2 * time.Second
 	DefaultKey            = ""
 	DefaultRateLimit      = 3
 	DefaultCryptoKeyPath  = ""
+	DefaultConfigPath     = ""
 )
 
 type Config struct {
-	Addr              string `env:"ADDRESS"`
-	ReportIntervalSec int    `env:"REPORT_INTERVAL"`
-	PollIntervalSec   int    `env:"POLL_INTERVAL"`
-	Key               string `env:"KEY"`
-	RateLimit         int    `env:"RATE_LIMIT"`
-	CryptoKey         string `env:"CRYPTO_KEY"`
+	Addr           string        `env:"ADDRESS"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL"`
+	Key            string        `env:"KEY"`
+	RateLimit      int           `env:"RATE_LIMIT"`
+	CryptoKey      string        `env:"CRYPTO_KEY"`
+	Config         string        `env:"CONFIG"`
 }
 
-func Read() Config {
+type JSONConfig struct {
+	Addr           string `json:"address"`
+	ReportInterval string `json:"report_interval"`
+	PollInterval   string `json:"poll_interval"`
+	CryptoKey      string `json:"crypto_key"`
+}
+
+func Read() (Config, error) {
 	config := Config{}
 
+	flag.StringVar(&config.Config, "c", DefaultConfigPath, "Path to config file")
+	flag.StringVar(&config.Config, "config", DefaultConfigPath, "Path to config file (alias for -c)")
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
-	flag.IntVar(&config.ReportIntervalSec, "r", DefaultReportInterval, "Send report metrics interval")
-	flag.IntVar(&config.PollIntervalSec, "p", DefaultPollInterval, "Read metrics interval")
+	flag.DurationVar(&config.ReportInterval, "r", DefaultReportInterval, "Send report metrics interval (duration)")
+	flag.DurationVar(&config.PollInterval, "p", DefaultPollInterval, "Read metrics interval (duration)")
 	flag.StringVar(&config.Key, "k", DefaultKey, "Key for hash")
 	flag.IntVar(&config.RateLimit, "l", DefaultRateLimit, "Rate limit for goroutines")
 	flag.StringVar(&config.CryptoKey, "crypto-key", DefaultCryptoKeyPath, "Path to RSA public key file")
@@ -39,8 +52,40 @@ func Read() Config {
 
 	err := env.Parse(&config)
 	if err != nil {
-		log.Fatal(err)
+		return config, err
 	}
 
-	return config
+	if config.Config != "" {
+		data, err := os.ReadFile(config.Config)
+		if err != nil {
+			return config, err
+		}
+		var jsonConfig JSONConfig
+		if err := json.Unmarshal(data, &jsonConfig); err != nil {
+			return config, err
+		}
+
+		if config.Addr == DefaultAddress {
+			config.Addr = jsonConfig.Addr
+		}
+		if config.PollInterval == DefaultPollInterval {
+			poolInterval, err := time.ParseDuration(jsonConfig.PollInterval)
+			if err != nil {
+				return config, err
+			}
+			config.PollInterval = poolInterval
+		}
+		if config.ReportInterval == DefaultReportInterval {
+			reportInterval, err := time.ParseDuration(jsonConfig.ReportInterval)
+			if err != nil {
+				return config, err
+			}
+			config.ReportInterval = reportInterval
+		}
+		if config.CryptoKey == DefaultCryptoKeyPath {
+			config.CryptoKey = jsonConfig.CryptoKey
+		}
+	}
+
+	return config, nil
 }
