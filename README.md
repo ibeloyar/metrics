@@ -234,8 +234,3 @@ github.com/ibeloyar/metrics/pkg/pool/pool.go:25:                                
 github.com/ibeloyar/metrics/pkg/pool/pool.go:31:                                Get                             100.0%
 total:                                                                          (statements)                    56.0%
 ```
-
-Инкремент 26
-Агент и сервер должны штатно завершаться по сигналам: syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT.
-Данные, которые находятся в процессе обработки на момент получения сигнала,
-должны быть успешно переданы агентом на сервер, а сервер должен успешно сохранить все несохранённые данные.
