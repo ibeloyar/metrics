@@ -18,7 +18,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-const ShutdownTimeout = 5 * time.Second
+const ShutdownTimeout = 30 * time.Second
 
 func pointer[T any](v T) *T {
 	return &v
