@@ -26,7 +26,7 @@ import (
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
-const ShutdownTimeout = 5 * time.Second
+const ShutdownTimeout = 20 * time.Second
 
 func Run(cfg config.Config) error {
 	var storage service.Storage
