@@ -106,10 +106,14 @@ func (s *MemStorage) Shutdown() error {
 
 // GetMetric returns single metric by ID or nil if not found.
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	v, ok := s.metrics[name]
 	if !ok {
 		return nil
 	}
+
 	return &v
 }
 
