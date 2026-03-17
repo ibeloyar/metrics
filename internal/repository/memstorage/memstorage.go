@@ -29,14 +29,14 @@ type MemStorage struct {
 
 // New creates MemStorage instance.
 //
-// storeSaveInterval: 0 = save on every write, >0 = periodic save interval in seconds.
+// storeSaveInterval: 0 = save on every write, >0 = periodic save interval in time.Duration
 // restore: true = load metrics from file on Init().
 // fileStorage: JSON, YAML or other file implementation.
-func New(fileStorage FileStorage, storeSaveInterval uint64, restore bool) *MemStorage {
+func New(fileStorage FileStorage, storeSaveInterval time.Duration, restore bool) *MemStorage {
 	var saveMetricTicker *time.Ticker = nil
 
 	if storeSaveInterval > 0 {
-		saveMetricTicker = time.NewTicker(time.Duration(storeSaveInterval) * time.Second)
+		saveMetricTicker = time.NewTicker(storeSaveInterval)
 	}
 
 	return &MemStorage{
@@ -106,10 +106,14 @@ func (s *MemStorage) Shutdown() error {
 
 // GetMetric returns single metric by ID or nil if not found.
 func (s *MemStorage) GetMetric(name string) *model.Metrics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	v, ok := s.metrics[name]
 	if !ok {
 		return nil
 	}
+
 	return &v
 }
 

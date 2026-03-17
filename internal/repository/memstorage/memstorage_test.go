@@ -3,6 +3,7 @@ package memstorage
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
@@ -21,6 +22,13 @@ var testConfig = config.Config{
 
 func ptrFloat64(v float64) *float64 { return &v }
 func ptrInt64(v int64) *int64       { return &v }
+
+func TestMemStorage_Init(t *testing.T) {
+	fs := filestorage.New("test.json")
+	ms := New(fs, 10*time.Second, true)
+	err := ms.Init()
+	require.NoError(t, err)
+}
 
 // TestSetMetric - require test, because if this function does not work, all other tests are useless
 func TestSetMetric(t *testing.T) {

@@ -20,7 +20,10 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
-	cfg := config.Read()
+	cfg, err := config.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if err := agent.Run(cfg); err != nil {
 		log.Fatal(err)

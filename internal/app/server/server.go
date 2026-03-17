@@ -20,10 +20,13 @@ import (
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
 	"github.com/ibeloyar/metrics/internal/service"
+	"github.com/ibeloyar/metrics/internal/service/crypto"
 	"go.uber.org/zap"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
+
+const ShutdownTimeout = 5 * time.Second
 
 func Run(cfg config.Config) error {
 	var storage service.Storage
@@ -70,6 +73,13 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
+
+	if cfg.CryptoKey != "" {
+		cryptoManager := crypto.NewCryptoManager(cfg.CryptoKey)
+
+		router.Use(cryptoManager.CryptoMiddleware)
+	}
+
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
 
@@ -92,7 +102,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 }
 
 func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) error {
-	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	lg.Infof("starting server on %s", addr)
@@ -106,10 +116,10 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 	<-signalCtx.Done()
 	lg.Info("shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown (server) error: %v", err)
 	}
 
@@ -117,7 +127,15 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 		return fmt.Errorf("shutdown (repo) error: %v", err)
 	}
 
-	lg.Info("server shutdown success")
+	select {
+	case <-shutdownCtx.Done():
+		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
+			lg.Warn("server shutdown timeout exceeded, forcing exit")
+		} else {
+			lg.Info("server graceful shutdown completed")
+		}
+	}
+
 	return nil
 }
 

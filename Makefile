@@ -1,6 +1,6 @@
 GO = go
 MAKE = make
-DB_HOST=192.168.0.102
+DB_HOST=192.168.0.105
 DB_USER=metrics
 DB_NAME=metrics
 DB_PASS=metrics

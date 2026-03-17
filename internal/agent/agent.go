@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"os/signal"
 	"runtime"
@@ -17,6 +18,8 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
+const ShutdownTimeout = 5 * time.Second
+
 func pointer[T any](v T) *T {
 	return &v
 }
@@ -29,29 +32,40 @@ func Run(config config.Config) error {
 
 	repo := repository.NewRepository()
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
-	s := service.NewService(config.Addr, config.Key)
+	s := service.NewService(config.Addr, config.Key, config.CryptoKey)
 	wp := workerpool.New(config.RateLimit, s, lg)
 	wp.Start()
 
-	go readRuntimeMetricsLoop(ctx, repo, config.PollIntervalSec)
-	go readGopsutilMetricsLoop(ctx, repo, config.PollIntervalSec)
-	go sendMetricsLoop(ctx, repo, wp, config.ReportIntervalSec)
+	go readRuntimeMetricsLoop(ctx, repo, config.PollInterval)
+	go readGopsutilMetricsLoop(ctx, repo, config.PollInterval)
+	go sendMetricsLoop(ctx, repo, wp, config.ReportInterval)
 
 	<-ctx.Done()
 
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
+
 	wp.Shutdown()
-	lg.Info("Agent shutdown")
+
+	select {
+	case <-shutdownCtx.Done():
+		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
+			lg.Warn("agent shutdown timeout exceeded, forcing exit")
+		} else {
+			lg.Info("agent graceful shutdown completed")
+		}
+	}
 
 	return nil
 }
 
-func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, pollIntervalSec int) {
+func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, pollInterval time.Duration) {
 	var m runtime.MemStats
 
-	ticker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -66,8 +80,8 @@ func readRuntimeMetricsLoop(ctx context.Context, repo *repository.Repository, po
 	}
 }
 
-func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, pollIntervalSec int) {
-	ticker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, pollInterval time.Duration) {
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -82,8 +96,8 @@ func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, p
 	}
 }
 
-func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *workerpool.WorkerPool, reportIntervalSec int) {
-	ticker := time.NewTicker(time.Duration(reportIntervalSec) * time.Second)
+func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *workerpool.WorkerPool, reportInterval time.Duration) {
+	ticker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
 	for {
 		select {
