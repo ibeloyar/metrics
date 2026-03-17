@@ -26,7 +26,7 @@ import (
 	config "github.com/ibeloyar/metrics/internal/config/server"
 )
 
-const ShutdownTimeout = 20 * time.Second
+const ShutdownTimeout = 30 * time.Second
 
 func Run(cfg config.Config) error {
 	var storage service.Storage
@@ -116,8 +116,8 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 	<-signalCtx.Done()
 	lg.Info("shutting down server...")
 
-	//shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
-	//defer cancel()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
 
 	if err := srv.Shutdown(context.Background()); err != nil {
 		return fmt.Errorf("shutdown (server) error: %v", err)
@@ -127,14 +127,14 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 		return fmt.Errorf("shutdown (repo) error: %v", err)
 	}
 
-	//select {
-	//case <-shutdownCtx.Done():
-	//	if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
-	//		lg.Warn("server shutdown timeout exceeded, forcing exit")
-	//	} else {
-	//		lg.Info("server graceful shutdown completed")
-	//	}
-	//}
+	select {
+	case <-shutdownCtx.Done():
+		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
+			lg.Warn("server shutdown timeout exceeded, forcing exit")
+		} else {
+			lg.Info("server graceful shutdown completed")
+		}
+	}
 	lg.Info("server graceful shutdown completed")
 
 	return nil
