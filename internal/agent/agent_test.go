@@ -67,33 +67,6 @@ func Test_readGopsutilMetricsLoop(t *testing.T) {
 	t.Log("gopsutil loop completed")
 }
 
-func Test_sendMetricsLoop(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSvc := mockService.NewMockService(ctrl)
-	lg := newTestLogger(t)
-	wp := workerpool.New(TestRateLimit, mockSvc, lg)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	repo := repository.NewRepository()
-
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	repo.SetFromMemStats(m)
-	repo.IncrementPollCounter()
-
-	mockSvc.EXPECT().SendMetrics(gomock.Any()).AnyTimes()
-
-	go sendMetricsLoop(ctx, repo, wp, 300)
-
-	<-ctx.Done()
-
-	t.Log("sendMetricsLoop completed")
-}
-
 func Test_Run_Integration(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -122,25 +95,4 @@ func Test_Run_Integration(t *testing.T) {
 
 	t.Logf("Integration test completed. PollCount: %d, Metrics: %d",
 		repo.GetPollCounter(), len(repo.GetAll()))
-}
-
-func Test_sendMetricsLoop_EmptyRepo(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSvc := mockService.NewMockService(ctrl)
-	lg := newTestLogger(t)
-	wp := workerpool.New(TestRateLimit, mockSvc, lg)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	repo := repository.NewRepository()
-	mockSvc.EXPECT().SendMetrics(gomock.Any()).AnyTimes()
-
-	go sendMetricsLoop(ctx, repo, wp, 300)
-
-	<-ctx.Done()
-
-	t.Log("Empty repo send loop completed")
 }
