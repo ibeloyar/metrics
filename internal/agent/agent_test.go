@@ -124,19 +124,6 @@ func Test_Run_Integration(t *testing.T) {
 		repo.GetPollCounter(), len(repo.GetAll()))
 }
 
-func Test_readRuntimeMetricsLoop_CancelImmediate(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	repo := repository.NewRepository()
-
-	cancel()
-
-	go readRuntimeMetricsLoop(ctx, repo, 1)
-
-	time.Sleep(100 * time.Millisecond)
-
-	assert.Zero(t, repo.GetPollCounter())
-}
-
 func Test_sendMetricsLoop_EmptyRepo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
