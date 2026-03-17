@@ -39,9 +39,9 @@ func Run(config config.Config) error {
 	wp := workerpool.New(config.RateLimit, s, lg)
 	wp.Start()
 
-	go readRuntimeMetricsLoop(ctx, repo, config.PollInterval)
-	go readGopsutilMetricsLoop(ctx, repo, config.PollInterval)
-	go sendMetricsLoop(ctx, repo, wp, config.ReportInterval)
+	go readRuntimeMetricsLoop(ctx, repo, time.Duration(config.PollInterval)*time.Second)
+	go readGopsutilMetricsLoop(ctx, repo, time.Duration(config.PollInterval)*time.Second)
+	go sendMetricsLoop(ctx, repo, wp, time.Duration(config.ReportInterval)*time.Second)
 
 	<-ctx.Done()
 

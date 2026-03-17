@@ -48,12 +48,12 @@ Metrics and alerting collection service
 | Flag                | Description                                 | Default |
 |---------------------|---------------------------------------------|---------|
 | -a string           | Address for the metrics server to listen on | `:8080` |
-| -r duration         | Send report metrics interval (seconds)      | `10s`   |
-| -p duration         | Read metrics interval (seconds)             | `2s`    |
+| -r int              | Send report metrics interval (seconds)      | `10`    |
+| -p int              | Read metrics interval (seconds)             | `2`     |
 | -k string           | Key for hashing                             | `""`    |
 | -l int              | Rate limit for goroutines                   | `3`     |
-| -c, --config string | Path to config file                         | ""      |
-| -crypto-key string  | Path to RSA public key file                 | ""      |
+| -c, --config string | Path to config file                         | `""`    |
+| -crypto-key string  | Path to RSA public key file                 | `""`    |
 
 ## Last pprof diff
 ```

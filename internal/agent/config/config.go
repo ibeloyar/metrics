@@ -11,8 +11,8 @@ import (
 
 const (
 	DefaultAddress        = ":8080"
-	DefaultReportInterval = 10 * time.Second
-	DefaultPollInterval   = 2 * time.Second
+	DefaultReportInterval = 10
+	DefaultPollInterval   = 2
 	DefaultKey            = ""
 	DefaultRateLimit      = 3
 	DefaultCryptoKeyPath  = ""
@@ -20,13 +20,13 @@ const (
 )
 
 type Config struct {
-	Addr           string        `env:"ADDRESS"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
-	Key            string        `env:"KEY"`
-	RateLimit      int           `env:"RATE_LIMIT"`
-	CryptoKey      string        `env:"CRYPTO_KEY"`
-	Config         string        `env:"CONFIG"`
+	Addr           string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	Key            string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
+	Config         string `env:"CONFIG"`
 }
 
 type JSONConfig struct {
@@ -42,8 +42,8 @@ func Read() (Config, error) {
 	flag.StringVar(&config.Config, "c", DefaultConfigPath, "Path to config file")
 	flag.StringVar(&config.Config, "config", DefaultConfigPath, "Path to config file (alias for -c)")
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
-	flag.DurationVar(&config.ReportInterval, "r", DefaultReportInterval, "Send report metrics interval (duration)")
-	flag.DurationVar(&config.PollInterval, "p", DefaultPollInterval, "Read metrics interval (duration)")
+	flag.IntVar(&config.ReportInterval, "r", DefaultReportInterval, "Send report metrics interval")
+	flag.IntVar(&config.PollInterval, "p", DefaultPollInterval, "Read metrics interval")
 	flag.StringVar(&config.Key, "k", DefaultKey, "Key for hash")
 	flag.IntVar(&config.RateLimit, "l", DefaultRateLimit, "Rate limit for goroutines")
 	flag.StringVar(&config.CryptoKey, "crypto-key", DefaultCryptoKeyPath, "Path to RSA public key file")
@@ -73,14 +73,14 @@ func Read() (Config, error) {
 			if err != nil {
 				return config, err
 			}
-			config.PollInterval = poolInterval
+			config.PollInterval = int(poolInterval.Seconds())
 		}
 		if config.ReportInterval == DefaultReportInterval {
 			reportInterval, err := time.ParseDuration(jsonConfig.ReportInterval)
 			if err != nil {
 				return config, err
 			}
-			config.ReportInterval = reportInterval
+			config.ReportInterval = int(reportInterval.Seconds())
 		}
 		if config.CryptoKey == DefaultCryptoKeyPath {
 			config.CryptoKey = jsonConfig.CryptoKey
