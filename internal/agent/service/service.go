@@ -45,6 +45,8 @@ func NewService(addr string, key, cryptoKeyPath string) *Service {
 	client.RetryWaitMin = firstRetryDuration
 	client.RetryWaitMax = lastRetryDuration
 	client.Backoff = CustomBackoff
+	client.HTTPClient.Timeout = 10 * time.Second
+
 	standardClient := client.StandardClient()
 
 	return &Service{
