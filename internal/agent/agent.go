@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"os/signal"
 	"runtime"
@@ -16,6 +17,8 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 )
+
+const ShutdownTimeout = 30 * time.Second
 
 func pointer[T any](v T) *T {
 	return &v
@@ -42,9 +45,19 @@ func Run(config config.Config) error {
 
 	<-ctx.Done()
 
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
+
 	wp.Shutdown()
 
-	lg.Info("agent graceful shutdown completed")
+	select {
+	case <-shutdownCtx.Done():
+		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
+			lg.Warn("agent shutdown timeout exceeded, forcing exit")
+		} else {
+			lg.Info("agent graceful shutdown completed")
+		}
+	}
 
 	return nil
 }

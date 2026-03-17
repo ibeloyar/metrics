@@ -7,7 +7,7 @@ Metrics and alerting collection service
 ### Server usage `./cmd/server/server [flags]`
 
 | Flag                | Description                                 | Default           |
-|---------------------|---------------------------------------------| ----------------- |
+|---------------------|---------------------------------------------|-------------------|
 | -a string           | Address for the metrics server to listen on | :8080             |
 | -audit-file string  | Path to the audit log file                  | ""                |
 | -audit-url string   | URL to send audit logs to                   | ""                |
@@ -15,7 +15,7 @@ Metrics and alerting collection service
 | -crypto-key string  | Path to RSA public key file                 | ""                |
 | -d string           | Database connection string                  | ""                |
 | -f string           | File storage path for metrics               | data/metrics.json |
-| -i duration         | Metrics save interval to file (seconds)     | 300s              |
+| -i int              | Metrics save interval to file (seconds)     | 300               |
 | -k string           | Key for hashing                             | ""                |
 | -pprof              | Enable pprof profiling endpoints            | false             |
 | -r                  | Restore metrics from file on startup        | false             |

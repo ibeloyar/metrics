@@ -11,7 +11,7 @@ import (
 
 const (
 	DefaultAddress         = ":8080"
-	DefaultStoreInterval   = 300 * time.Second
+	DefaultStoreInterval   = 300
 	DefaultFileStoragePath = "data/metrics.json"
 	DefaultRestore         = false
 	DefaultDatabaseDSN     = ""
@@ -24,17 +24,17 @@ const (
 )
 
 type Config struct {
-	Addr            string        `env:"ADDRESS"`
-	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
-	FileStoragePath string        `env:"FILE_STORAGE_PATH"`
-	Restore         bool          `env:"RESTORE"`
-	DatabaseDSN     string        `env:"DATABASE_DSN"`
-	Key             string        `env:"KEY"`
-	AuditFile       string        `env:"AUDIT_FILE"`
-	AuditURL        string        `env:"AUDIT_URL"`
-	Pprof           bool          `env:"PPROF"`
-	CryptoKey       string        `env:"CRYPTO_KEY"`
-	Config          string        `env:"CONFIG"`
+	Addr            string `env:"ADDRESS"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         bool   `env:"RESTORE"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
+	Key             string `env:"KEY"`
+	AuditFile       string `env:"AUDIT_FILE"`
+	AuditURL        string `env:"AUDIT_URL"`
+	Pprof           bool   `env:"PPROF"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
+	Config          string `env:"CONFIG"`
 }
 
 type JSONConfig struct {
@@ -51,7 +51,7 @@ func Read() (Config, error) {
 
 	flag.StringVar(&config.Config, "c", DefaultConfigPath, "Path to config file")
 	flag.StringVar(&config.Config, "config", DefaultConfigPath, "Path to config file (alias for -c)")
-	flag.DurationVar(&config.StoreInterval, "i", DefaultStoreInterval, "Save metrics to file interval")
+	flag.IntVar(&config.StoreInterval, "i", DefaultStoreInterval, "Save metrics to file interval")
 	flag.StringVar(&config.FileStoragePath, "f", DefaultFileStoragePath, "File storage path")
 	flag.BoolVar(&config.Restore, "r", DefaultRestore, "Get restore metrics from file on start")
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
@@ -89,7 +89,7 @@ func Read() (Config, error) {
 			if err != nil {
 				return config, err
 			}
-			config.StoreInterval = storeInterval
+			config.StoreInterval = int(storeInterval.Seconds())
 		}
 		if config.FileStoragePath == DefaultFileStoragePath {
 			config.FileStoragePath = jsonConfig.FileStoragePath
