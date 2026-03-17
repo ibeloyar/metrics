@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func resetFlags() {
@@ -44,7 +43,7 @@ func TestRead_FlagAddress(t *testing.T) {
 	resetFlags()
 	unsetEnvVars()
 
-	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8", "-p", "1"}
 
 	config, err := Read()
 	if err != nil {
@@ -53,19 +52,19 @@ func TestRead_FlagAddress(t *testing.T) {
 	if config.Addr != "flag:7070" {
 		t.Errorf("expected address from flag %q, got %q", "flag:7070", config.Addr)
 	}
-	if config.ReportInterval != 8*time.Second {
-		t.Errorf("expected report interval from flag %d, got %d", 8*time.Second, config.ReportInterval)
+	if config.ReportInterval != 8 {
+		t.Errorf("expected report interval from flag %d, got %d", 8, config.ReportInterval)
 	}
-	if config.PollInterval != 1*time.Second {
-		t.Errorf("expected poll interval from flag %d, got %d", 1*time.Second, config.PollInterval)
+	if config.PollInterval != 1 {
+		t.Errorf("expected poll interval from flag %d, got %d", 1, config.PollInterval)
 	}
 }
 
 func TestRead_EnvVariable(t *testing.T) {
 	resetFlags()
 	os.Setenv("ADDRESS", "env:9090")
-	os.Setenv("REPORT_INTERVAL", "20s")
-	os.Setenv("POLL_INTERVAL", "5s")
+	os.Setenv("REPORT_INTERVAL", "20")
+	os.Setenv("POLL_INTERVAL", "5")
 	defer unsetEnvVars()
 
 	os.Args = []string{"cmd"}
@@ -77,22 +76,22 @@ func TestRead_EnvVariable(t *testing.T) {
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
-	if config.ReportInterval != 20*time.Second {
-		t.Errorf("expected report interval from env %d, got %d", 20*time.Second, config.ReportInterval)
+	if config.ReportInterval != 20 {
+		t.Errorf("expected report interval from env %d, got %d", 20, config.ReportInterval)
 	}
-	if config.PollInterval != 5*time.Second {
-		t.Errorf("expected poll interval from env %d, got %d", 5*time.Second, config.PollInterval)
+	if config.PollInterval != 5 {
+		t.Errorf("expected poll interval from env %d, got %d", 5, config.PollInterval)
 	}
 }
 
 func TestRead_EnvOverridesFlag(t *testing.T) {
 	resetFlags()
 	os.Setenv("ADDRESS", "env:9090")
-	os.Setenv("REPORT_INTERVAL", "20s")
-	os.Setenv("POLL_INTERVAL", "5s")
+	os.Setenv("REPORT_INTERVAL", "20")
+	os.Setenv("POLL_INTERVAL", "5")
 	defer unsetEnvVars()
 
-	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8", "-p", "1"}
 
 	config, err := Read()
 	if err != nil {
@@ -101,11 +100,11 @@ func TestRead_EnvOverridesFlag(t *testing.T) {
 	if config.Addr != "env:9090" {
 		t.Errorf("expected address from env %q, got %q", "env:9090", config.Addr)
 	}
-	if config.ReportInterval != 20*time.Second {
-		t.Errorf("expected report interval from env %d, got %d", 20*time.Second, config.ReportInterval)
+	if config.ReportInterval != 20 {
+		t.Errorf("expected report interval from env %d, got %d", 20, config.ReportInterval)
 	}
-	if config.PollInterval != 5*time.Second {
-		t.Errorf("expected poll interval from env %d, got %d", 5*time.Second, config.PollInterval)
+	if config.PollInterval != 5 {
+		t.Errorf("expected poll interval from env %d, got %d", 5, config.PollInterval)
 	}
 }
 
@@ -142,7 +141,7 @@ func TestRead_JSONConfig_Not_Applied(t *testing.T) {
 	os.Setenv("CONFIG", "")
 	defer os.Unsetenv("CONFIG")
 
-	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8s", "-p", "1s"}
+	os.Args = []string{"cmd", "-a", "flag:7070", "-r", "8", "-p", "1"}
 
 	config, err := Read()
 	if err != nil {
@@ -151,10 +150,10 @@ func TestRead_JSONConfig_Not_Applied(t *testing.T) {
 	if config.Addr != "flag:7070" {
 		t.Errorf("expected address from env %q, got %q", "flag:7070", config.Addr)
 	}
-	if config.ReportInterval != 8*time.Second {
-		t.Errorf("expected report interval from env %d, got %d", 8*time.Second, config.ReportInterval)
+	if config.ReportInterval != 8 {
+		t.Errorf("expected report interval from env %d, got %d", 8, config.ReportInterval)
 	}
-	if config.PollInterval != 1*time.Second {
-		t.Errorf("expected poll interval from env %d, got %d", 2*time.Second, config.PollInterval)
+	if config.PollInterval != 1 {
+		t.Errorf("expected poll interval from env %d, got %d", 1, config.PollInterval)
 	}
 }
