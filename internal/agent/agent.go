@@ -48,15 +48,19 @@ func Run(config config.Config) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
 	defer cancel()
 
-	wp.Shutdown()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		wp.Shutdown()
+	}()
 
 	select {
 	case <-shutdownCtx.Done():
 		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
 			lg.Warn("agent shutdown timeout exceeded, forcing exit")
-		} else {
-			lg.Info("agent graceful shutdown completed")
 		}
+	case <-done:
+		lg.Info("agent graceful shutdown completed")
 	}
 
 	return nil

@@ -3,7 +3,6 @@ package memstorage
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/ibeloyar/metrics/internal/model"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
@@ -25,7 +24,7 @@ func ptrInt64(v int64) *int64       { return &v }
 
 func TestMemStorage_Init(t *testing.T) {
 	fs := filestorage.New("test.json")
-	ms := New(fs, 10*time.Second, true)
+	ms := New(fs, 10, true)
 	err := ms.Init()
 	require.NoError(t, err)
 }

@@ -119,23 +119,25 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(context.Background()); err != nil {
-		return fmt.Errorf("shutdown (server) error: %v", err)
-	}
-
-	if err := storage.Shutdown(); err != nil {
-		return fmt.Errorf("shutdown (repo) error: %v", err)
-	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := srv.Shutdown(context.Background()); err != nil {
+			lg.Warnf("shutdown (server) error: %v", err)
+		}
+		if err := storage.Shutdown(); err != nil {
+			lg.Warnf("shutdown (repo) error: %v", err)
+		}
+	}()
 
 	select {
 	case <-shutdownCtx.Done():
 		if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
-			lg.Warn("server shutdown timeout exceeded, forcing exit")
-		} else {
-			lg.Info("server graceful shutdown completed")
+			lg.Warn("agent shutdown timeout exceeded, forcing exit")
 		}
+	case <-done:
+		lg.Info("agent graceful shutdown completed")
 	}
-	lg.Info("server graceful shutdown completed")
 
 	return nil
 }
