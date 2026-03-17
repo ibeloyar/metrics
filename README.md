@@ -6,17 +6,19 @@ Metrics and alerting collection service
 
 ### Server usage `./cmd/server/server [flags]`
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-a, --address string` | Address for the metrics server to listen on | `:8080` |
-| `-audit-file string` | Path to the audit log file | |
-| `-audit-url string` | URL to send audit logs to | |
-| `-d, --database string` | Database connection string | |
-| `-f, --file string` | File storage path for metrics | `data/metrics.json` |
-| `-i, --interval uint` | Metrics save interval to file (seconds) | `300` |
-| `-k, --key string` | Key for hashing | |
-| `-pprof` | Enable pprof profiling endpoints | |
-| `-r, --restore` | Restore metrics from file on startup | |
+| Flag                | Description                                 | Default           |
+|---------------------|---------------------------------------------| ----------------- |
+| -a string           | Address for the metrics server to listen on | :8080             |
+| -audit-file string  | Path to the audit log file                  | ""                |
+| -audit-url string   | URL to send audit logs to                   | ""                |
+| -c, --config string | Path to config file                         | ""                |
+| -crypto-key string  | Path to RSA public key file                 | ""                |
+| -d string           | Database connection string                  | ""                |
+| -f string           | File storage path for metrics               | data/metrics.json |
+| -i duration         | Metrics save interval to file (seconds)     | 300s              |
+| -k string           | Key for hashing                             | ""                |
+| -pprof              | Enable pprof profiling endpoints            | false             |
+| -r                  | Restore metrics from file on startup        | false             |
 
 **Basic server with default settings**
 ```
@@ -43,13 +45,15 @@ Metrics and alerting collection service
 
 ### Agent usage `./cmd/agent/agent [flags]`
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-a, --address string` | Address for the metrics server to listen on | `:8080` |
-| `-r, --report-interval int` | Send report metrics interval (seconds) | `10` |
-| `-p, --poll-interval int` | Read metrics interval (seconds) | `2` |
-| `-k, --key string` | Key for hashing | `""` |
-| `-l, --rate-limit int` | Rate limit for goroutines | `3` |
+| Flag                | Description                                 | Default |
+|---------------------|---------------------------------------------|---------|
+| -a string           | Address for the metrics server to listen on | `:8080` |
+| -r duration         | Send report metrics interval (seconds)      | `10s`   |
+| -p duration         | Read metrics interval (seconds)             | `2s`    |
+| -k string           | Key for hashing                             | `""`    |
+| -l int              | Rate limit for goroutines                   | `3`     |
+| -c, --config string | Path to config file                         | ""      |
+| -crypto-key string  | Path to RSA public key file                 | ""      |
 
 ## Last pprof diff
 ```
