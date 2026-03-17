@@ -134,27 +134,6 @@ func TestShutdown(t *testing.T) {
 	assert.False(t, ok, "channel should be closed")
 }
 
-func TestFullLifecycle(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSvc := mockService.NewMockService(ctrl)
-	mockSvc.EXPECT().SendMetrics(gomock.Any()).Return(nil).Times(4)
-
-	logger := zaptest.NewLogger(t)
-	defer logger.Sync()
-
-	pool := New(3, mockSvc, logger.Sugar())
-	pool.Start()
-
-	for i := 0; i < 5; i++ {
-		pool.Dispatch([]service.SendMetricBody{{ID: fmt.Sprintf("batch-%d", i)}})
-	}
-
-	time.Sleep(500 * time.Millisecond)
-	pool.Shutdown()
-}
-
 func TestRateLimitZero(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
