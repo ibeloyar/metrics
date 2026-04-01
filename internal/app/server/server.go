@@ -16,6 +16,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
 	"github.com/ibeloyar/metrics/internal/middleware/gzip"
+	"github.com/ibeloyar/metrics/internal/middleware/trustednets"
 	"github.com/ibeloyar/metrics/internal/repository/filestorage"
 	"github.com/ibeloyar/metrics/internal/repository/memstorage"
 	"github.com/ibeloyar/metrics/internal/repository/pgstorage"
@@ -82,6 +83,7 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 
 	router.Use(logger.LoggingMiddleware(lg))
 	router.Use(middleware.Recoverer)
+	router.Use(trustednets.TrustedSubnetMiddleware(cfg.TrustedSubnet, lg))
 
 	s := service.New(storage, auditSubject)
 

@@ -21,6 +21,7 @@ const (
 	DefaultPprof           = false
 	DefaultCryptoKeyPath   = ""
 	DefaultConfigPath      = ""
+	DefaultTrustedSubnet   = ""
 )
 
 type Config struct {
@@ -35,6 +36,7 @@ type Config struct {
 	Pprof           bool   `env:"PPROF"`
 	CryptoKey       string `env:"CRYPTO_KEY"`
 	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
 
 type JSONConfig struct {
@@ -44,6 +46,7 @@ type JSONConfig struct {
 	Restore         bool   `json:"restore"`
 	DatabaseDSN     string `json:"database_dsn"`
 	CryptoKey       string `json:"crypto_key"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func Read() (Config, error) {
@@ -63,6 +66,7 @@ func Read() (Config, error) {
 	flag.BoolVar(&config.Pprof, "pprof", DefaultPprof, "Enable pprof profiling endpoints")
 
 	flag.StringVar(&config.CryptoKey, "crypto-key", DefaultCryptoKeyPath, "Path to RSA public key file")
+	flag.StringVar(&config.TrustedSubnet, "t", DefaultTrustedSubnet, "Trusted subnet in CIDR notation")
 
 	flag.Parse()
 
@@ -102,6 +106,9 @@ func Read() (Config, error) {
 		}
 		if config.CryptoKey == DefaultCryptoKeyPath {
 			config.CryptoKey = jsonConfig.CryptoKey
+		}
+		if config.TrustedSubnet == DefaultTrustedSubnet {
+			config.TrustedSubnet = jsonConfig.TrustedSubnet
 		}
 	}
 

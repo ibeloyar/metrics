@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -91,15 +92,21 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 		return err
 	}
 
-	if s.crypto != nil && s.crypto.Enabled {
-		request.Header.Set("X-Crypto-Encrypted", "true")
+	outboundIP, err := getOutboundIP()
+	if err != nil {
+		return err
 	}
+
+	request.Header.Set("X-Real-IP", outboundIP)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	if s.key != "" {
 		request.Header.Set(hashHeaderName, GetHashBodySHA256(bodyBytes, s.key))
 	}
-
+	if s.crypto != nil && s.crypto.Enabled {
+		request.Header.Set("X-Crypto-Encrypted", "true")
+	}
+	
 	response, err := s.client.Do(request)
 	if err != nil {
 		return err
@@ -126,4 +133,15 @@ func GetHashBodySHA256(data []byte, key string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func getOutboundIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
 }
