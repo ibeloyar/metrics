@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -120,7 +119,5 @@ func Read() (Config, error) {
 		}
 	}
 
-	fmt.Println(config)
-	
 	return config, nil
 }

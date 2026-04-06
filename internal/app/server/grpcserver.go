@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	metricsv1 "github.com/ibeloyar/metrics/proto/metrics/v1"
@@ -89,23 +89,23 @@ func (mc *MetricsGRPCController) TrustedNetsUnaryInterceptor() grpc.UnaryServerI
 			return handler(ctx, req)
 		}
 
-		p, ok := peer.FromContext(ctx)
-		if !ok || p.Addr == nil {
-			mc.lg.Warn("no peer info in context")
-			return nil, status.Errorf(codes.PermissionDenied, "no peer info")
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			mc.lg.Warn("no metadata in context")
+			return nil, status.Errorf(codes.PermissionDenied, "no metadata")
 		}
 
-		ipStr := p.Addr.String()
-		host, _, err := net.SplitHostPort(ipStr)
-		if err != nil {
-			mc.lg.Warnf("invalid peer addr %q: %v", ipStr, err)
-			return nil, status.Errorf(codes.PermissionDenied, "invalid peer addr")
+		ips := md.Get("x-real-ip")
+		if len(ips) == 0 {
+			mc.lg.Warn("x-real-ip header missing")
+			return nil, status.Errorf(codes.PermissionDenied, "x-real-ip required")
 		}
 
+		host := ips[0]
 		clientIP := net.ParseIP(host)
 		if clientIP == nil {
-			mc.lg.Warnf("invalid client IP %q", host)
-			return nil, status.Errorf(codes.PermissionDenied, "invalid client IP")
+			mc.lg.Warnf("invalid x-real-ip %q", host)
+			return nil, status.Errorf(codes.PermissionDenied, "invalid x-real-ip")
 		}
 
 		if !mc.trustedSubnet.Contains(clientIP) {

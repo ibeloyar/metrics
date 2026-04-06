@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"net"
 	"os/signal"
 	"runtime"
 	"syscall"
@@ -18,6 +19,7 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 
 	metricsv1 "github.com/ibeloyar/metrics/proto/metrics/v1"
 )
@@ -164,6 +166,13 @@ func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *worke
 }
 
 func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client grpcservice.MetricsClient, lg *zap.SugaredLogger, reportInterval time.Duration) {
+	updateMetricsCtx := ctx
+
+	if localIP := getOutboundIP(); localIP != "" {
+		md := metadata.Pairs("x-real-ip", localIP)
+		updateMetricsCtx = metadata.NewOutgoingContext(ctx, md)
+	}
+
 	ticker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
 
@@ -193,7 +202,7 @@ func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client gr
 				grpcMetrics = append(grpcMetrics, grpcMetric)
 			}
 
-			if _, err := client.UpdateMetrics(ctx, grpcMetrics); err != nil {
+			if _, err := client.UpdateMetrics(updateMetricsCtx, grpcMetrics); err != nil {
 				lg.Error("sending grpc metrics failed", zap.Error(err))
 			}
 
@@ -201,4 +210,14 @@ func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client gr
 			return
 		}
 	}
+}
+
+func getOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+
+	return conn.LocalAddr().(*net.UDPAddr).IP.String()
 }
