@@ -10,12 +10,16 @@ import (
 	"time"
 
 	"github.com/ibeloyar/metrics/internal/agent/config"
+	"github.com/ibeloyar/metrics/internal/agent/grpcservice"
 	"github.com/ibeloyar/metrics/internal/agent/repository"
 	"github.com/ibeloyar/metrics/internal/agent/service"
 	"github.com/ibeloyar/metrics/internal/agent/workerpool"
 	"github.com/ibeloyar/metrics/internal/logger"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+	"go.uber.org/zap"
+
+	metricsv1 "github.com/ibeloyar/metrics/proto/metrics/v1"
 )
 
 const ShutdownTimeout = 30 * time.Second
@@ -43,6 +47,16 @@ func Run(config config.Config) error {
 	go readGopsutilMetricsLoop(ctx, repo, time.Duration(config.PollInterval)*time.Second)
 	go sendMetricsLoop(ctx, repo, wp, time.Duration(config.ReportInterval)*time.Second)
 
+	var grpcClient grpcservice.MetricsClient
+	if config.GRPCAddr != "" {
+		grpcClient, err = grpcservice.NewGRPCMetricsClient(config.GRPCAddr)
+		if err != nil {
+			lg.Error("failed to create grpc client", zap.Error(err))
+		}
+
+		go sendMetricsGRPC(ctx, repo, grpcClient, lg, time.Duration(config.ReportInterval)*time.Second)
+	}
+
 	<-ctx.Done()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
@@ -51,7 +65,14 @@ func Run(config config.Config) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+
 		wp.Shutdown()
+
+		if config.GRPCAddr != "" {
+			if shutdownErr := grpcClient.Shutdown(shutdownCtx); err != nil {
+				lg.Error("failed to shutdown grpc client", zap.Error(shutdownErr))
+			}
+		}
 	}()
 
 	select {
@@ -100,36 +121,82 @@ func readGopsutilMetricsLoop(ctx context.Context, repo *repository.Repository, p
 	}
 }
 
+func getAllMetrics(repo *repository.Repository) []service.SendMetricBody {
+	allMetrics := make([]service.SendMetricBody, 0)
+
+	for name, value := range repo.GetAll() {
+		allMetrics = append(allMetrics, service.SendMetricBody{
+			ID:    name,
+			MType: "gauge",
+			Value: pointer(value),
+		})
+	}
+
+	allMetrics = append(allMetrics, service.SendMetricBody{
+		ID:    "PollCount",
+		MType: "counter",
+		Delta: pointer(repo.GetPollCounter()),
+	})
+
+	randomValue := rand.Float64()
+	allMetrics = append(allMetrics, service.SendMetricBody{
+		ID:    "RandomValue",
+		MType: "gauge",
+		Value: pointer(randomValue),
+	})
+
+	return allMetrics
+}
+
 func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *workerpool.WorkerPool, reportInterval time.Duration) {
 	ticker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			allMetrics := make([]service.SendMetricBody, 0)
-
-			for name, value := range repo.GetAll() {
-				allMetrics = append(allMetrics, service.SendMetricBody{
-					ID:    name,
-					MType: "gauge",
-					Value: pointer(value),
-				})
-			}
-
-			allMetrics = append(allMetrics, service.SendMetricBody{
-				ID:    "PollCount",
-				MType: "counter",
-				Delta: pointer(repo.GetPollCounter()),
-			})
-
-			randomValue := rand.Float64()
-			allMetrics = append(allMetrics, service.SendMetricBody{
-				ID:    "RandomValue",
-				MType: "gauge",
-				Value: pointer(randomValue),
-			})
+			allMetrics := getAllMetrics(repo)
 
 			wp.Dispatch(allMetrics)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client grpcservice.MetricsClient, lg *zap.SugaredLogger, reportInterval time.Duration) {
+	ticker := time.NewTicker(reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			allMetrics := getAllMetrics(repo)
+			grpcMetrics := make([]*metricsv1.Metric, 0)
+
+			for _, metric := range allMetrics {
+				grpcMetric := &metricsv1.Metric{}
+
+				grpcMetric.SetId(metric.ID)
+				if metric.MType == "counter" {
+					grpcMetric.SetType(metricsv1.Metric_COUNTER)
+				}
+				if metric.MType == "gauge" {
+					grpcMetric.SetType(metricsv1.Metric_GAUGE)
+				}
+				if metric.Delta != nil {
+					grpcMetric.SetDelta(*metric.Delta)
+				}
+				if metric.Value != nil {
+					grpcMetric.SetValue(*metric.Value)
+				}
+
+				grpcMetrics = append(grpcMetrics, grpcMetric)
+			}
+
+			if _, err := client.UpdateMetrics(ctx, grpcMetrics); err != nil {
+				lg.Error("sending grpc metrics failed", zap.Error(err))
+			}
+
 		case <-ctx.Done():
 			return
 		}

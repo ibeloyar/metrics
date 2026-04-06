@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 const (
 	DefaultAddress         = ":8080"
+	DefaultGRPCAddress     = ""
 	DefaultStoreInterval   = 300
 	DefaultFileStoragePath = "data/metrics.json"
 	DefaultRestore         = false
@@ -26,6 +28,7 @@ const (
 
 type Config struct {
 	Addr            string `env:"ADDRESS"`
+	GRPCAddr        string `env:"GRPC_ADDRESS"`
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
@@ -41,6 +44,7 @@ type Config struct {
 
 type JSONConfig struct {
 	Addr            string `json:"address"`
+	GRPCAddr        string `json:"grpc_address"`
 	StoreInterval   string `json:"store_interval"`
 	FileStoragePath string `json:"store_file"`
 	Restore         bool   `json:"restore"`
@@ -58,6 +62,7 @@ func Read() (Config, error) {
 	flag.StringVar(&config.FileStoragePath, "f", DefaultFileStoragePath, "File storage path")
 	flag.BoolVar(&config.Restore, "r", DefaultRestore, "Get restore metrics from file on start")
 	flag.StringVar(&config.Addr, "a", DefaultAddress, "The address metric SERVER listen on")
+	flag.StringVar(&config.GRPCAddr, "g", DefaultGRPCAddress, "The address metric GRPC SERVER listen on")
 	flag.StringVar(&config.DatabaseDSN, "d", DefaultDatabaseDSN, "Database connect string")
 	flag.StringVar(&config.Key, "k", DefaultKey, "Key for hash")
 
@@ -88,6 +93,9 @@ func Read() (Config, error) {
 		if config.Addr == DefaultAddress {
 			config.Addr = jsonConfig.Addr
 		}
+		if config.GRPCAddr == DefaultGRPCAddress {
+			config.GRPCAddr = jsonConfig.GRPCAddr
+		}
 		if config.StoreInterval == DefaultStoreInterval {
 			storeInterval, err := time.ParseDuration(jsonConfig.StoreInterval)
 			if err != nil {
@@ -112,5 +120,7 @@ func Read() (Config, error) {
 		}
 	}
 
+	fmt.Println(config)
+	
 	return config, nil
 }

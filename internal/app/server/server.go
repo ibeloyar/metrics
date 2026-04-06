@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/ibeloyar/metrics/internal/audit"
 	"github.com/ibeloyar/metrics/internal/handler"
 	"github.com/ibeloyar/metrics/internal/logger"
@@ -23,8 +25,11 @@ import (
 	"github.com/ibeloyar/metrics/internal/service"
 	"github.com/ibeloyar/metrics/internal/service/crypto"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	config "github.com/ibeloyar/metrics/internal/config/server"
+	metricsv1 "github.com/ibeloyar/metrics/proto/metrics/v1"
 )
 
 const ShutdownTimeout = 20 * time.Second
@@ -65,12 +70,12 @@ func Run(cfg config.Config) error {
 		return fmt.Errorf("audit init: %w", err)
 	}
 
-	srv := buildServer(cfg, storage, lg, auditSubject)
+	srv, grpcSrv := buildServers(cfg, storage, lg, auditSubject)
 
-	return runServer(srv, storage, lg, cfg.Addr)
+	return runServers(srv, grpcSrv, storage, lg, cfg.Addr, cfg.GRPCAddr)
 }
 
-func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger, auditSubject *audit.AuditSubject) *http.Server {
+func buildServers(cfg config.Config, storage service.Storage, lg *zap.SugaredLogger, auditSubject *audit.AuditSubject) (*http.Server, *grpc.Server) {
 	router := chi.NewRouter()
 
 	router.Use(gzip.Middleware)
@@ -100,10 +105,20 @@ func buildServer(cfg config.Config, storage service.Storage, lg *zap.SugaredLogg
 		IdleTimeout:       120 * time.Second, // idle connection timeout
 	}
 
-	return srv
+	controller := NewMetricsGRPCController(lg, storage, cfg.TrustedSubnet)
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			controller.TrustedNetsUnaryInterceptor(),
+			recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(controller.HandlePanic)),
+		),
+	)
+	metricsv1.RegisterMetricsServer(grpcServer, controller)
+	reflection.Register(grpcServer)
+
+	return srv, grpcServer
 }
 
-func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger, addr string) error {
+func runServers(srv *http.Server, grpcSrv *grpc.Server, storage service.Storage, lg *zap.SugaredLogger, addr, grpcAddr string) error {
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
@@ -114,6 +129,21 @@ func runServer(srv *http.Server, storage service.Storage, lg *zap.SugaredLogger,
 			lg.Fatalf("server ListenAndServe error: %v", err)
 		}
 	}()
+
+	if grpcAddr != "" {
+		listener, err := net.Listen("tcp", grpcAddr)
+		if err != nil {
+			lg.Fatalf("failed to listen grpc: %v", err)
+		}
+		go func() {
+			lg.Infof("starting grpc server on %s", grpcAddr)
+
+			if err := grpcSrv.Serve(listener); err != nil {
+				lg.Errorf("failed to grpc serve: %v", err)
+				return
+			}
+		}()
+	}
 
 	<-signalCtx.Done()
 	lg.Info("shutting down server...")
