@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
-	"net"
 	"os/signal"
 	"runtime"
 	"syscall"
@@ -16,6 +15,7 @@ import (
 	"github.com/ibeloyar/metrics/internal/agent/service"
 	"github.com/ibeloyar/metrics/internal/agent/workerpool"
 	"github.com/ibeloyar/metrics/internal/logger"
+	"github.com/ibeloyar/metrics/pkg/netlib"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 	"go.uber.org/zap"
@@ -71,7 +71,7 @@ func Run(config config.Config) error {
 		wp.Shutdown()
 
 		if config.GRPCAddr != "" {
-			if shutdownErr := grpcClient.Shutdown(shutdownCtx); err != nil {
+			if shutdownErr := grpcClient.Shutdown(shutdownCtx); shutdownErr != nil {
 				lg.Error("failed to shutdown grpc client", zap.Error(shutdownErr))
 			}
 		}
@@ -168,7 +168,7 @@ func sendMetricsLoop(ctx context.Context, repo *repository.Repository, wp *worke
 func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client grpcservice.MetricsClient, lg *zap.SugaredLogger, reportInterval time.Duration) {
 	updateMetricsCtx := ctx
 
-	if localIP := getOutboundIP(); localIP != "" {
+	if localIP := netlib.GetOutboundIP(); localIP != "" {
 		md := metadata.Pairs("x-real-ip", localIP)
 		updateMetricsCtx = metadata.NewOutgoingContext(ctx, md)
 	}
@@ -210,14 +210,4 @@ func sendMetricsGRPC(ctx context.Context, repo *repository.Repository, client gr
 			return
 		}
 	}
-}
-
-func getOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return ""
-	}
-	defer conn.Close()
-
-	return conn.LocalAddr().(*net.UDPAddr).IP.String()
 }
