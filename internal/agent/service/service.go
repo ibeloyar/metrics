@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/ibeloyar/metrics/internal/agent/service/crypto"
+	"github.com/ibeloyar/metrics/pkg/netlib"
 )
 
 const (
@@ -91,13 +92,14 @@ func (s *Service) SendMetrics(metrics []SendMetricBody) error {
 		return err
 	}
 
-	if s.crypto != nil && s.crypto.Enabled {
-		request.Header.Set("X-Crypto-Encrypted", "true")
-	}
+	request.Header.Set("X-Real-IP", netlib.GetOutboundIP())
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Content-Encoding", "gzip")
 	if s.key != "" {
 		request.Header.Set(hashHeaderName, GetHashBodySHA256(bodyBytes, s.key))
+	}
+	if s.crypto != nil && s.crypto.Enabled {
+		request.Header.Set("X-Crypto-Encrypted", "true")
 	}
 
 	response, err := s.client.Do(request)

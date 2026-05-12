@@ -91,6 +91,9 @@ endif
 install-tools:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest # golang-migrate CLI
 	go install github.com/golang/mock/mockgen@latest  # mocks for tests
+	sudo apt install protobuf-compiler # Linux with apt only TODO: write script install from source
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 .PHONY: profile-base
 profile-base:
@@ -151,6 +154,13 @@ else
 	@exit 1
 endif
 
+.PHONY: proto
+proto:
+	protoc \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		--go_opt=default_api_level=API_OPAQUE \
+		./proto/metrics/v1/metrics.proto
 
 .PHONY: help
 help:
@@ -174,4 +184,5 @@ help:
 	@echo "generate          | run go generate"
 	@echo "vet               | run go vet static analysis"
 	@echo "vetbuild          | build static linter multichecker"
+	@echo "proto             | generate proto files for metrics"
 	@echo "docs              | show Go docs; EXAMPLE: make docs PKG=pgstorage|memstorage|handlers|service|handler"
